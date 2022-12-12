@@ -1,0 +1,28 @@
+for(n=get_length) {
+	set_pixel(n-1, 0, 0, 0);
+};
+loop {
+	// set random pixel to random color
+	lucky = random(get_length);
+	for(n=get_length) {
+		if(n == lucky) {
+			r = random(255);
+			g = random(255);
+			b = random(255);
+			set_pixel(n, r, g, b);
+		}
+	};
+	blit;
+	// sleep for 20 frames
+	for(i=20) {
+		blit; // We need to blit, which will yield control to caller, who suppose to limit frame rate
+	};
+	// Black one random pixel
+	luckyb = random(get_length);
+	for(n=get_length) {
+		if(n == luckyb) {
+			set_pixel(n-1, 0, 0, 0);
+		}
+	};
+	blit;
+}

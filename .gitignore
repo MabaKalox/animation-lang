@@ -1,0 +1,10 @@
+# Rust
+target
+
+# As this is lib, ignore
+Cargo.lock
+
+# IDE specific
+.idea
+.vscode
+
