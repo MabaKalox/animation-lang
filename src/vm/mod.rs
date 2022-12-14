@@ -4,16 +4,20 @@ pub(crate) mod strip;
 use super::instructions::{Binary, Prefix, Special, Unary, UserCommand};
 use crate::color_intermeddle_type::ColorMiddleLayer;
 use crate::program::Program;
+use derivative::Derivative;
 use errors::VMError;
-use rand::{Rng, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+use rand::{Rng, RngCore, SeedableRng};
+use rand_chacha::ChaCha8Rng;
 use std::time::{SystemTime, UNIX_EPOCH};
 use strip::DummyLedStrip;
 
-#[derive(Default, Clone)]
-pub struct StateConfig {
+#[derive(Derivative)]
+#[derivative(Default)]
+pub struct VMStateConfig {
     pub global_instruction_limit: Option<usize>,
     pub local_instruction_limit: Option<usize>,
+    #[derivative(Default(value = "Box::new(ChaCha8Rng::seed_from_u64(0))"))]
+    pub rng: Box<dyn RngCore>,
 }
 
 pub struct VMState {
@@ -23,8 +27,7 @@ pub struct VMState {
     stack: Vec<u32>,
     start_time: SystemTime,
     instruction_count: usize,
-    deterministic_rng: ChaCha20Rng,
-    config: StateConfig,
+    config: VMStateConfig,
 }
 
 pub struct VM {
@@ -45,7 +48,7 @@ pub enum Outcome {
 }
 
 impl VMState {
-    fn new(vm: VM, program: Program, config: StateConfig) -> VMState {
+    fn new(vm: VM, program: Program, config: VMStateConfig) -> VMState {
         let start_time = if vm.config.deterministic {
             SystemTime::UNIX_EPOCH
         } else {
@@ -59,7 +62,6 @@ impl VMState {
             start_time,
             config,
             instruction_count: 0,
-            deterministic_rng: ChaCha20Rng::from_seed([0u8; 32]),
         }
     }
     pub fn pc(&self) -> usize {
@@ -170,7 +172,7 @@ impl VMState {
                     return Some(Outcome::Error(VMError::StackUnderflow));
                 }
                 let v = self.stack.pop().unwrap();
-                self.stack.push(self.deterministic_rng.gen_range(0..v));
+                self.stack.push(self.config.rng.gen_range(0..v));
                 None
             }
             Some(UserCommand::GET_PIXEL) => {
@@ -379,7 +381,7 @@ impl VMState {
         Outcome::Ended
     }
 
-    pub fn stop(self) -> (VM, StateConfig, Program) {
+    pub fn stop(self) -> (VM, VMStateConfig, Program) {
         (self.vm, self.config, self.program)
     }
 }
@@ -396,7 +398,7 @@ impl VM {
         &self.strip
     }
 
-    pub fn start(self, program: Program, config: StateConfig) -> VMState {
+    pub fn start(self, program: Program, config: VMStateConfig) -> VMState {
         if self.config.trace {
             println!("prog hex dump: {:X?}", program.code)
         }

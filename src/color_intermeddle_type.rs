@@ -7,6 +7,12 @@ pub type RGBW8 = RGBW<u8, u8>;
 pub struct ColorMiddleLayer(pub RGBW8);
 
 impl ColorMiddleLayer {
+    pub fn set_alpha(&mut self, alpha: u8) {
+        self.0.a = White(alpha);
+    }
+}
+
+impl ColorMiddleLayer {
     pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
         ColorMiddleLayer(RGBW8::new_alpha(r, g, b, White(a)))
     }
