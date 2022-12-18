@@ -2,10 +2,8 @@ use std::io::{self, Read};
 use std::net::TcpListener;
 use std::time::{Duration, Instant};
 
-use animation_lang::color_intermeddle_type::RGBW8;
 use animation_lang::vm::VMState;
 use animation_lang::{
-    color_intermeddle_type::ColorMiddleLayer,
     program::Program,
     vm::{VMStateConfig, VM},
 };
@@ -13,7 +11,8 @@ use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{IntoStorage, Point, RgbColor, Size};
 use embedded_graphics::primitives::{Primitive, PrimitiveStyleBuilder, Rectangle, StrokeAlignment};
 use minifb::{Key, Window, WindowOptions};
-use smart_leds_trait::{SmartLedsWrite, White, RGBW};
+use rgb::RGB8;
+use smart_leds_trait::SmartLedsWrite;
 
 const VLED_QUANTITY: usize = 50;
 const VLED_WIDTH: usize = 15;
@@ -148,7 +147,7 @@ trait ExportFB {
 impl ExportFB for VLedStrip {
     fn export_fb(&self, frame_buffer: &mut [u32]) {
         for (i, color_rgbw) in self.state.iter().enumerate() {
-            let vled_color: Rgb888 = ColorMiddleLayer::from(*color_rgbw).into();
+            let vled_color = Rgb888::new(color_rgbw.r, color_rgbw.g, color_rgbw.b);
             let horizontal_offset = i * (VLED_WIDTH + VLED_H_SPACING);
             let virtual_led = Rectangle::new(
                 Point::new(
@@ -174,12 +173,12 @@ impl ExportFB for VLedStrip {
 }
 
 pub struct VLedStrip {
-    pub state: Vec<RGBW8>,
+    pub state: Vec<RGB8>,
 }
 
 impl SmartLedsWrite for VLedStrip {
     type Error = ();
-    type Color = RGBW8;
+    type Color = RGB8;
 
     fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
     where
@@ -196,7 +195,7 @@ impl SmartLedsWrite for VLedStrip {
 impl VLedStrip {
     pub fn new(length: usize) -> Self {
         VLedStrip {
-            state: vec![RGBW::from((0, 0, 0, White(0))); length],
+            state: vec![RGB8::new(0, 0, 0); length],
         }
     }
 }

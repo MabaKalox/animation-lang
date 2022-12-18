@@ -1,6 +1,7 @@
 use animation_lang::program::Program;
 use anyhow::{bail, Result};
 use clap::Parser;
+use reqwest::blocking::Client;
 use std::{
     fs::File,
     io::{Read, Write},
@@ -16,8 +17,8 @@ struct Args {
     #[arg(long, short)]
     out_file: Option<PathBuf>,
 
-    #[arg(long, short)]
-    send_addr: Option<SocketAddr>,
+    #[arg(long, short, help = "address to send base64 encoded program")]
+    send_addr: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -37,10 +38,14 @@ fn main() -> Result<()> {
 
     if let Some(addr) = args.send_addr {
         println!("Sending program to {}", addr);
-        let mut stream = std::net::TcpStream::connect(addr)?;
+        let resp = Client::new()
+            .post(addr)
+            .body(base64::encode(p.code()))
+            .send()?;
 
-        stream.write_all(p.code())?;
-        println!("Program send");
+        if resp.status() != 200 {
+            bail!("{}", resp.text()?);
+        }
     }
 
     Ok(())

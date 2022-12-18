@@ -13,8 +13,9 @@ loop {
 		}
 	};
 	blit;
-	// sleep for 20 frames
-	for(i=20) {
+	// sleep for (3-60) frames
+	d = clamp(random(10000), 100, 2000);
+	for(i=d) {
 		blit; // We need to blit, which will yield control to caller, who suppose to limit frame rate
 	};
 	// Black one random pixel

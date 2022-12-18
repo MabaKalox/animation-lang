@@ -2,12 +2,12 @@ pub mod errors;
 pub(crate) mod strip;
 
 use super::instructions::{Binary, Prefix, Special, Unary, UserCommand};
-use crate::color_intermeddle_type::ColorMiddleLayer;
 use crate::program::Program;
 use derivative::Derivative;
 use errors::VMError;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use rgb::RGB8;
 use std::time::{SystemTime, UNIX_EPOCH};
 use strip::DummyLedStrip;
 
@@ -44,7 +44,7 @@ pub struct VMConfig {
 pub enum Outcome {
     Ended,
     Error(VMError),
-    BLIT(Box<dyn Iterator<Item = ColorMiddleLayer> + Send>),
+    BLIT(Box<dyn Iterator<Item = RGB8> + Send>),
 }
 
 impl VMState {
@@ -141,7 +141,7 @@ impl VMState {
                 let g = (((v >> 8) as u32) & 0xFF) as u8;
                 let b = (((v >> 16) as u32) & 0xFF) as u8;
 
-                let color = ColorMiddleLayer::new(r, g, b, 0);
+                let color = RGB8::new(r, g, b);
                 let idx = self.stack.last().unwrap();
 
                 if self.vm.config.trace {
@@ -183,9 +183,9 @@ impl VMState {
                 let color = self.vm.strip.get_pixel(v);
                 // bbbb gggg rrrr iiii
                 let color_value = (v & 0xFF)
-                    | (color.0.r as u32) << 8
-                    | (color.0.g as u32) << 16
-                    | (color.0.b as u32) << 24;
+                    | (color.r as u32) << 8
+                    | (color.g as u32) << 16
+                    | (color.b as u32) << 24;
                 self.stack.push(color_value);
                 None
             }
@@ -394,8 +394,8 @@ impl VM {
         }
     }
 
-    pub fn get_strip(&self) -> &DummyLedStrip {
-        &self.strip
+    pub fn set_stip_length(&mut self, length: usize) {
+        self.strip.set_length(length)
     }
 
     pub fn start(self, program: Program, config: VMStateConfig) -> VMState {
@@ -407,7 +407,7 @@ impl VM {
 }
 
 impl Iterator for VMState {
-    type Item = Result<Box<dyn Iterator<Item = ColorMiddleLayer> + Send>, VMError>;
+    type Item = Result<Box<dyn Iterator<Item = RGB8> + Send>, VMError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.run() {
