@@ -1,5 +1,5 @@
 use crate::instructions;
-use crate::program::Program;
+use crate::program::{Program, SyntaxError};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
@@ -35,13 +35,14 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn unnest(&mut self, program: &mut Program) {
+    pub fn unnest(&mut self, program: &mut Program) -> Result<(), SyntaxError> {
         match self.parent {
             Some(_) => {
-                self.assemble_teardown(program);
-                self.parent = None
+                self.assemble_teardown(program)?;
+                self.parent = None;
+                Ok(())
             }
-            None => panic!("cannot unnest scope without parent"),
+            None => Err(SyntaxError::ConnotUnnest),
         }
     }
 
@@ -56,36 +57,40 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn define_variable(&mut self, variable_name: &str) {
+    pub fn define_variable(&mut self, variable_name: &str) -> Result<(), SyntaxError> {
         if self.variables.iter().any(|r| r == variable_name) {
-            panic!("variable already defined")
+            return Err(SyntaxError::RedifinedVariable(variable_name.to_string()));
         }
 
         self.variables.push(variable_name.to_string());
-        // A variable was already pushed, but we are now counting it througn variables.len()
+
+        Ok(())
     }
 
-    pub fn undefine_variable(&mut self, variable_name: &str) {
+    pub fn undefine_variable(&mut self, variable_name: &str) -> Result<(), SyntaxError> {
         if let Some(p) = self.variables.iter().position(|r| r == variable_name) {
             self.variables.remove(p);
+            Ok(())
         } else {
-            panic!("variable was not defined")
+            Err(SyntaxError::UndefinedVariable(variable_name.to_string()))
         }
     }
 
-    pub(crate) fn assemble_teardown(&self, program: &mut Program) {
+    pub(crate) fn assemble_teardown(&self, program: &mut Program) -> Result<(), SyntaxError> {
         if !self.variables.is_empty() {
-            program.pop(self.variables.len() as u8);
+            program.pop(self.variables.len() as u8)?;
         }
+
+        Ok(())
     }
 }
 
 impl Node {
-    pub fn assemble(&self, program: &mut Program, scope: &mut Scope) {
+    pub fn assemble(&self, program: &mut Program, scope: &mut Scope) -> Result<(), SyntaxError> {
         match self {
             Node::Expression(e) => {
-                e.assemble(program, scope);
-                program.pop(1);
+                e.assemble(program, scope)?;
+                program.pop(1)?;
                 scope.level -= 1;
             }
             Node::Special(s) => {
@@ -131,88 +136,95 @@ impl Node {
                         }
 
                         // Index
-                        e[0].assemble(program, scope);
+                        e[0].assemble(program, scope)?;
                         scope.level = pre_level + 1;
-                        color_expression.assemble(program, scope);
+                        color_expression.assemble(program, scope)?;
                         scope.level = pre_level;
                     }
                     _ => {
                         for param in e.iter() {
-                            param.assemble(program, scope);
+                            param.assemble(program, scope)?;
                         }
                     }
                 }
                 program.user(*s);
-                program.pop(1);
+                program.pop(1)?;
             }
             Node::Statements(stmts) => {
                 for i in stmts.iter() {
-                    i.assemble(program, scope);
+                    i.assemble(program, scope)?;
                 }
             }
             Node::Loop(stmts) => {
                 program.repeat_forever(|q| {
                     let mut child_scope = scope.nest();
                     for i in stmts.iter() {
-                        i.assemble(q, &mut child_scope);
+                        i.assemble(q, &mut child_scope)?;
                     }
-                    child_scope.unnest(q);
-                });
+                    child_scope.unnest(q)?;
+                    Ok(())
+                })?;
             }
             Node::For(variable_name, expression, stmts) => {
-                expression.assemble(program, scope);
-                scope.define_variable(variable_name);
+                expression.assemble(program, scope)?;
+                scope.define_variable(variable_name)?;
                 program.repeat(|q| {
                     let mut child_scope = scope.nest();
                     for i in stmts.iter() {
-                        i.assemble(q, &mut child_scope);
+                        i.assemble(q, &mut child_scope)?;
                     }
-                    child_scope.unnest(q);
-                });
+                    child_scope.unnest(q)?;
+
+                    Ok(())
+                })?;
 
                 // Undefine variable
-                scope.undefine_variable(variable_name);
+                scope.undefine_variable(variable_name)?;
                 scope.level -= 1;
-                program.pop(1);
+                program.pop(1)?;
             }
             Node::If(e, ss) => {
                 let old_level = scope.level;
-                e.assemble(program, scope);
+                e.assemble(program, scope)?;
                 program.if_not_zero(|q| {
                     let mut child_scope = scope.nest();
                     for i in ss.iter() {
-                        i.assemble(q, &mut child_scope);
+                        i.assemble(q, &mut child_scope)?;
                     }
-                    child_scope.unnest(q);
-                });
-                program.pop(1);
+                    child_scope.unnest(q)?;
+                    Ok(())
+                })?;
+                program.pop(1)?;
                 scope.level = old_level;
             }
             Node::IfElse(e, if_statements, else_statements) => {
                 let old_level = scope.level;
-                e.assemble(program, scope);
+                e.assemble(program, scope)?;
                 program.if_not_zero(|q| {
                     let mut child_scope = scope.nest();
                     for i in if_statements.iter() {
-                        i.assemble(q, &mut child_scope);
+                        i.assemble(q, &mut child_scope)?;
                     }
-                    child_scope.unnest(q);
-                });
+                    child_scope.unnest(q)?;
+                    Ok(())
+                })?;
                 program.if_zero(|q| {
                     let mut child_scope = scope.nest();
                     for i in else_statements.iter() {
-                        i.assemble(q, &mut child_scope);
+                        i.assemble(q, &mut child_scope)?;
                     }
-                    child_scope.unnest(q);
-                });
-                program.pop(1);
+                    child_scope.unnest(q)?;
+                    Ok(())
+                })?;
+                program.pop(1)?;
                 scope.level = old_level;
             }
             Node::Assignment(variable_name, expression) => {
-                expression.assemble(program, scope);
-                scope.define_variable(variable_name); // Value left on the stack but cleaned up later by Scope::assemble_teardown
+                expression.assemble(program, scope)?;
+                scope.define_variable(variable_name)?; // Value left on the stack but cleaned up later by Scope::assemble_teardown
             }
         }
+        Ok(())
     }
 }
 
@@ -233,12 +245,12 @@ pub enum Expression {
 }
 
 impl Expression {
-    fn assemble(&self, program: &mut Program, scope: &mut Scope) {
+    fn assemble(&self, program: &mut Program, scope: &mut Scope) -> Result<(), SyntaxError> {
         // If we can be simplified to a constant expression, do that!
         if let Some(c) = self.const_value() {
             program.push(c);
             scope.level += 1;
-            return;
+            return Ok(());
         }
 
         match self {
@@ -253,74 +265,78 @@ impl Expression {
             Expression::UserCall(s, e) => {
                 let old_level = scope.level;
                 for param in e.iter() {
-                    param.assemble(program, scope);
+                    param.assemble(program, scope)?;
                 }
                 program.user(*s);
                 scope.level = old_level + 1;
             }
             Expression::Unary(op, rhs) => {
-                rhs.assemble(program, scope);
+                rhs.assemble(program, scope)?;
                 program.unary(*op);
             }
             Expression::Binary(lhs, op, rhs) => {
-                lhs.assemble(program, scope);
-                rhs.assemble(program, scope);
+                lhs.assemble(program, scope)?;
+                rhs.assemble(program, scope)?;
                 program.binary(*op);
                 scope.level -= 1;
             }
             Expression::Load(variable_name) => {
                 if let Some(relative) = scope.index_of(variable_name) {
                     // println!("Index of {} is {}", variable_name, relative);
-                    program.peek(relative as u8);
+                    program.peek(relative as u8)?;
                     scope.level += 1;
                 } else {
-                    panic!("variable not found: {}", variable_name)
+                    return Err(SyntaxError::UndefinedVariable(variable_name.to_string()));
                 }
             }
             Expression::Intrinsic(intrinsic) => {
                 match intrinsic {
                     Intrinsic::Clamp(value, min, max) => {
                         let old_level = scope.level;
-                        value.assemble(program, scope); // [value]
-                        min.assemble(program, scope); // [min, value]
-                        program.peek(1); // [value, min, value]
-                        program.peek(1); // [min, value, min, value]
+                        value.assemble(program, scope)?; // [value]
+                        min.assemble(program, scope)?; // [min, value]
+                        program.peek(1)?; // [value, min, value]
+                        program.peek(1)?; // [min, value, min, value]
                         program.binary(instructions::Binary::LT); // [value < min, min, value]
 
                         // value < min
                         program.if_not_zero(|b| {
-                            b.pop(1); // [min, value]
+                            b.pop(1)?; // [min, value]
                             b.swap(); // [value, min]
-                            b.pop(1); // [min]
+                            b.pop(1)?; // [min]
                             b.leave_on_stack(-2);
-                        });
+                            Ok(())
+                        })?;
 
                         // value >= min
                         program.if_zero(|b| {
-                            b.pop(2); // [value]
+                            b.pop(2)?; // [value]
                             b.leave_on_stack(-2);
-                        });
+                            Ok(())
+                        })?;
 
                         program.leave_on_stack(2);
 
-                        max.assemble(program, scope); // [max, previous_result]
-                        program.peek(1); // [previous_result, max, previous_result]
-                        program.peek(1); // [max, previous_result, max, previous_result]
+                        max.assemble(program, scope)?; // [max, previous_result]
+                        program.peek(1)?; // [previous_result, max, previous_result]
+                        program.peek(1)?; // [max, previous_result, max, previous_result]
                         program.binary(instructions::Binary::GT); // [previous_result > max, max, previous_result]
 
                         // previous_result > max
                         program.if_not_zero(|b| {
-                            b.pop(1); // [max, previous_result]
+                            b.pop(1)?; // [max, previous_result]
                             b.swap(); // [previous_result, max]
-                            b.pop(1); // [max]
+                            b.pop(1)?; // [max]
                             b.leave_on_stack(-2);
-                        });
+                            Ok(())
+                        })?;
 
                         // previous_result <= max
                         program.if_zero(|b| {
-                            b.pop(2); // [previous_result]
+                            b.pop(2)?; // [previous_result]
                             b.leave_on_stack(-2);
-                        });
+                            Ok(())
+                        })?;
 
                         program.leave_on_stack(2);
                         scope.level = old_level + 1;
@@ -328,6 +344,8 @@ impl Expression {
                 }
             }
         }
+
+        Ok(())
     }
 
     fn const_value(&self) -> Option<u32> {

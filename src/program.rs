@@ -2,6 +2,8 @@ use std::fmt;
 use std::fs::File;
 use std::io::{Read, Write};
 
+use thiserror::Error;
+
 use crate::instructions::{Binary, Prefix, Special, Unary, UserCommand};
 
 #[derive(Clone)]
@@ -9,6 +11,34 @@ pub struct Program {
     pub(crate) code: Vec<u8>,
     pub(crate) stack_size: i32,
     pub(crate) offset: usize,
+}
+
+pub const PEEKPOP_LIMIT: u8 = 15;
+
+#[derive(Error, Debug)]
+pub enum SyntaxError {
+    #[error("variable already defined: {0}")]
+    RedifinedVariable(String),
+
+    #[error("variable was not defined: {0}")]
+    UndefinedVariable(String),
+
+    #[error("cannot unnest scope without parent")]
+    ConnotUnnest,
+
+    #[error(
+        "cannot peek/pop, limit reached: [{0}] greater then limit [{}]",
+        PEEKPOP_LIMIT
+    )]
+    PeekPopLimit(u8),
+
+    #[error("fragment in {0} cannot modify stack size")]
+    FragmentCannotModifyStackSize(&'static str),
+
+    #[error("could not parse, remainder: {0}")]
+    CouldNotParseRamainder(String),
+    #[error("parse error")]
+    ParseError(String),
 }
 
 #[allow(dead_code)]
@@ -48,10 +78,13 @@ impl Program {
         self.write(&[Prefix::POP as u8]) // POP 0
     }
 
-    pub fn pop(&mut self, n: u8) -> &mut Program {
-        assert!(n <= 15, "cannot pop more than 15 stack items");
-        self.stack_size -= i32::from(n);
-        self.write(&[Prefix::POP as u8 | n]) // POP n
+    pub fn pop(&mut self, n: u8) -> Result<&mut Program, SyntaxError> {
+        if n > PEEKPOP_LIMIT {
+            Err(SyntaxError::PeekPopLimit(n))
+        } else {
+            self.stack_size -= i32::from(n);
+            Ok(self.write(&[Prefix::POP as u8 | n])) // POP n
+        }
     }
 
     /* This can be used to allow fragments (i.e. in a branch arm) to modify the stack size */
@@ -60,10 +93,13 @@ impl Program {
         self
     }
 
-    pub fn peek(&mut self, n: u8) -> &mut Program {
-        assert!(n <= 15, "cannot peek more than 15 stack items");
-        self.stack_size += 1;
-        self.write(&[Prefix::PEEK as u8 | n]) // PEEK n
+    pub fn peek(&mut self, n: u8) -> Result<&mut Program, SyntaxError> {
+        if n > PEEKPOP_LIMIT {
+            Err(SyntaxError::PeekPopLimit(n))
+        } else {
+            self.stack_size += 1;
+            Ok(self.write(&[Prefix::PEEK as u8 | n])) // PEEK n
+        }
     }
 
     pub fn unary(&mut self, u: Unary) -> &mut Program {
@@ -97,20 +133,19 @@ impl Program {
         self.write(&[Prefix::USER as u8 | u as u8]) // SPECIAL u
     }
 
-    fn skip<F>(&mut self, prefix: Prefix, mut builder: F) -> &mut Program
+    fn skip<F>(&mut self, prefix: Prefix, mut builder: F) -> Result<&mut Program, SyntaxError>
     where
-        F: FnMut(&mut Program),
+        F: FnMut(&mut Program) -> Result<(), SyntaxError>,
     {
         let mut fragment = Program {
             code: Vec::<u8>::new(),
             stack_size: 0,
             offset: self.current_pc() + 3,
         };
-        builder(&mut fragment);
-        assert_eq!(
-            fragment.stack_size, 0,
-            "fragment in branch cannot modify stack size"
-        );
+        builder(&mut fragment)?;
+        if fragment.stack_size != 0 {
+            return Err(SyntaxError::FragmentCannotModifyStackSize("branch"));
+        }
 
         // Always write three-byte jumps for now
         let address = self.current_pc() + 3 + fragment.code.len();
@@ -119,37 +154,36 @@ impl Program {
             (address & 0xFF) as u8,
             ((address >> 8) & 0xFF) as u8,
         ]);
-        self.write(&fragment.code)
+        Ok(self.write(&fragment.code))
     }
 
-    pub fn if_zero<F>(&mut self, builder: F) -> &mut Program
+    pub fn if_zero<F>(&mut self, builder: F) -> Result<&mut Program, SyntaxError>
     where
-        F: FnMut(&mut Program),
+        F: FnMut(&mut Program) -> Result<(), SyntaxError>,
     {
         self.skip(Prefix::JNZ, builder)
     }
 
-    pub fn if_not_zero<F>(&mut self, builder: F) -> &mut Program
+    pub fn if_not_zero<F>(&mut self, builder: F) -> Result<&mut Program, SyntaxError>
     where
-        F: FnMut(&mut Program),
+        F: FnMut(&mut Program) -> Result<(), SyntaxError>,
     {
         self.skip(Prefix::JZ, builder)
     }
 
-    pub fn repeat_forever<F>(&mut self, mut builder: F) -> &mut Program
+    pub fn repeat_forever<F>(&mut self, mut builder: F) -> Result<&mut Program, SyntaxError>
     where
-        F: FnMut(&mut Program),
+        F: FnMut(&mut Program) -> Result<(), SyntaxError>,
     {
         let mut fragment = Program {
             code: Vec::<u8>::new(),
             stack_size: 0,
             offset: self.current_pc(),
         };
-        builder(&mut fragment);
-        assert_eq!(
-            fragment.stack_size, 0,
-            "fragment in forever loop cannot modify stack size"
-        );
+        builder(&mut fragment)?;
+        if fragment.stack_size != 0 {
+            return Err(SyntaxError::FragmentCannotModifyStackSize("forever loop"));
+        }
 
         let start = self.current_pc();
         self.write(&fragment.code);
@@ -158,27 +192,26 @@ impl Program {
             (start & 0xFF) as u8,
             ((start >> 8) & 0xFF) as u8,
         ]);
-        self
+        Ok(self)
     }
 
     fn current_pc(&self) -> usize {
         self.offset + self.code.len()
     }
 
-    pub fn repeat<F>(&mut self, mut builder: F) -> &mut Program
+    pub fn repeat<F>(&mut self, mut builder: F) -> Result<&mut Program, SyntaxError>
     where
-        F: FnMut(&mut Program),
+        F: FnMut(&mut Program) -> Result<(), SyntaxError>,
     {
         let mut fragment = Program {
             code: Vec::<u8>::new(),
             stack_size: 0,
             offset: self.current_pc(),
         };
-        builder(&mut fragment);
-        assert_eq!(
-            fragment.stack_size, 0,
-            "fragment in loop cannot modify stack size"
-        );
+        builder(&mut fragment)?;
+        if fragment.stack_size != 0 {
+            return Err(SyntaxError::FragmentCannotModifyStackSize("loop"));
+        }
 
         let start = self.current_pc();
         self.write(&fragment.code);
@@ -188,15 +221,15 @@ impl Program {
             (start & 0xFF) as u8,
             ((start >> 8) & 0xFF) as u8,
         ]);
-        self
+        Ok(self)
     }
 
-    pub fn repeat_times<F>(&mut self, times: u32, builder: F) -> &mut Program
+    pub fn repeat_times<F>(&mut self, times: u32, builder: F) -> Result<&mut Program, SyntaxError>
     where
-        F: FnMut(&mut Program),
+        F: FnMut(&mut Program) -> Result<(), SyntaxError>,
     {
         self.push(times);
-        self.repeat(builder);
+        self.repeat(builder)?;
         self.pop(1)
     }
 
@@ -268,7 +301,7 @@ impl Program {
         self.special(Special::DUMP)
     }
 
-    pub fn dup(&mut self) -> &mut Program {
+    pub fn dup(&mut self) -> Result<&mut Program, SyntaxError> {
         self.peek(0)
     }
 

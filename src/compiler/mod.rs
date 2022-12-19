@@ -6,11 +6,11 @@ use nom::{
     combinator::{map, map_res, opt},
     multi::{fold_many0, separated_list0},
     sequence::{delimited, pair, preceded, terminated, tuple},
-    IResult,
+    Finish, IResult,
 };
 
-use crate::instructions;
 use crate::program::Program;
+use crate::{instructions, program::SyntaxError};
 use ast::{Expression, Intrinsic, Node, Scope};
 
 fn from_hex(input: &str) -> Result<u32, std::num::ParseIntError> {
@@ -509,24 +509,20 @@ fn program(input: &str) -> IResult<&str, Node> {
 }
 
 impl Program {
-    pub fn from_source(source: &str) -> Result<Program, String> {
-        match program(source) {
+    pub fn from_source(source: &str) -> Result<Program, SyntaxError> {
+        match program(source).finish() {
             Ok((remainder, n)) => {
                 if !remainder.is_empty() {
-                    let err_string = format!("Could not parse, remainder: {}", remainder);
-                    Err(err_string)
+                    Err(SyntaxError::CouldNotParseRamainder(remainder.to_string()))
                 } else {
                     let mut p = Program::new();
                     let mut scope = Scope::new();
-                    n.assemble(&mut p, &mut scope);
-                    scope.assemble_teardown(&mut p);
+                    n.assemble(&mut p, &mut scope)?;
+                    scope.assemble_teardown(&mut p)?;
                     Ok(p)
                 }
             }
-            Err(x) => {
-                let err_string = format!("Parser error: {:?}", x);
-                Err(err_string)
-            }
+            Err(x) => Err(SyntaxError::ParseError(x.to_string())),
         }
     }
 }
