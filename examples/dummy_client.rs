@@ -1,5 +1,3 @@
-use std::io::{self, Read};
-use std::net::TcpListener;
 use std::time::{Duration, Instant};
 
 use animation_lang::vm::VMState;
@@ -13,6 +11,7 @@ use embedded_graphics::primitives::{Primitive, PrimitiveStyleBuilder, Rectangle,
 use minifb::{Key, Window, WindowOptions};
 use rgb::RGB8;
 use smart_leds_trait::SmartLedsWrite;
+use tiny_http::{Method, Response, Server, StatusCode};
 
 const VLED_QUANTITY: usize = 50;
 const VLED_WIDTH: usize = 15;
@@ -56,8 +55,7 @@ fn main() {
     )
     .unwrap();
 
-    let mut listener = TcpListener::bind("127.0.0.1:8888").unwrap();
-    listener.set_nonblocking(true).unwrap();
+    let mut server = Server::http("127.0.0.1:8888").unwrap();
 
     let mut led_strip = VLedStrip::new(VLED_QUANTITY);
     let mut vm_state = VM::new(VLED_QUANTITY, Default::default()).start(
@@ -71,7 +69,7 @@ fn main() {
 
     let mut last_update = Instant::now() - 2 * FRAME_TIME;
     while window.is_open() && !window.is_key_down(Key::Escape) {
-        if let Some(new_prog) = check_tcp(&mut listener) {
+        if let Some(new_prog) = try_receive_new_prob(&mut server) {
             vm_state = {
                 let (vm, state_config, _) = vm_state.stop();
                 vm.start(Program::from_binary(new_prog), state_config)
@@ -85,7 +83,8 @@ fn main() {
                 Some(r) => match r {
                     Ok(frame) => led_strip.write(frame).unwrap(),
                     Err(e) => {
-                        eprint!("halting vm until new program recieved, error: {:?}", e);
+                        println!("halting vm until new program received");
+                        eprintln!("{:?}", e);
                         vm_running = false;
                     }
                 },
@@ -127,16 +126,44 @@ impl Restart for VMState {
     }
 }
 
-fn check_tcp(listener: &mut TcpListener) -> Option<Vec<u8>> {
-    match listener.accept() {
-        Ok(mut stream) => {
-            println!("Receiving new program");
-            let mut new_prog = Vec::new();
-            stream.0.read_to_end(&mut new_prog).unwrap();
-            Some(new_prog)
-        }
-        Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => None,
-        Err(e) => Err(e).unwrap(),
+fn try_receive_new_prob(server: &mut Server) -> Option<Vec<u8>> {
+    match server.try_recv().unwrap() {
+        Some(mut req) => match req.url() {
+            "/send_prog_base64" => match req.method() {
+                Method::Post => {
+                    let mut body = Vec::new();
+                    req.as_reader().read_to_end(&mut body).unwrap();
+
+                    match base64::decode(&body) {
+                        Ok(prog) => {
+                            req.respond(Response::empty(200)).unwrap();
+                            Some(prog)
+                        }
+                        Err(e) => {
+                            let message = format!("bad base64 payload: {}", e);
+                            req.respond(Response::new(
+                                StatusCode(400),
+                                vec![],
+                                message.as_bytes(),
+                                Some(message.as_bytes().len()),
+                                None,
+                            ))
+                            .unwrap();
+                            None
+                        }
+                    }
+                }
+                _ => {
+                    req.respond(Response::empty(StatusCode(405))).unwrap();
+                    None
+                }
+            },
+            _ => {
+                req.respond(Response::empty(StatusCode(404))).unwrap();
+                None
+            }
+        },
+        None => None,
     }
 }
 

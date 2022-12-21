@@ -36,7 +36,7 @@ impl Prefix {
     }
 }
 
-impl std::fmt::Display for Prefix {
+impl fmt::Display for Prefix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -104,7 +104,7 @@ impl Unary {
     }
 }
 
-impl std::fmt::Display for Unary {
+impl fmt::Display for Unary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -188,7 +188,7 @@ impl Binary {
     }
 }
 
-impl std::fmt::Display for Binary {
+impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,

@@ -140,21 +140,23 @@ impl Program {
         let mut fragment = Program {
             code: Vec::<u8>::new(),
             stack_size: 0,
-            offset: self.current_pc() + 3,
+            offset: self.current_pc() + 3, // before fragment would be inst+2bytes address
         };
         builder(&mut fragment)?;
         if fragment.stack_size != 0 {
             return Err(SyntaxError::FragmentCannotModifyStackSize("branch"));
         }
 
+        // [JS/JNS, addr, addr, ...fragment], so we add 3 on top of fragment size to get end addr
+        let end_address = self.current_pc() + 3 + fragment.code.len();
         // Always write three-byte jumps for now
-        let address = self.current_pc() + 3 + fragment.code.len();
         self.write(&[
             prefix as u8,
-            (address & 0xFF) as u8,
-            ((address >> 8) & 0xFF) as u8,
+            (end_address & 0xFF) as u8,
+            ((end_address >> 8) & 0xFF) as u8,
         ]);
-        Ok(self.write(&fragment.code))
+        self.write(&fragment.code);
+        Ok(self)
     }
 
     pub fn if_zero<F>(&mut self, builder: F) -> Result<&mut Program, SyntaxError>
@@ -206,18 +208,26 @@ impl Program {
         let mut fragment = Program {
             code: Vec::<u8>::new(),
             stack_size: 0,
-            offset: self.current_pc(),
+            offset: self.current_pc() + 3, // before fragment would be inst+2bytes address
         };
         builder(&mut fragment)?;
         if fragment.stack_size != 0 {
-            return Err(SyntaxError::FragmentCannotModifyStackSize("loop"));
+            return Err(SyntaxError::FragmentCannotModifyStackSize("for loop"));
         }
 
         let start = self.current_pc();
+        // [JMP,addr,addr][...loop body...][DEC][JMP,addr,addr]
+        let end = start + 3 + fragment.code.len() + 1 + 3;
+        self.write(&[
+            Prefix::JZ as u8,
+            (end & 0xFF) as u8,
+            ((end >> 8) & 0xFF) as u8,
+        ]);
+
         self.write(&fragment.code);
         self.write(&[Prefix::UNARY as u8 | Unary::DEC as u8]);
         self.write(&[
-            Prefix::JNZ as u8,
+            Prefix::JMP as u8,
             (start & 0xFF) as u8,
             ((start >> 8) & 0xFF) as u8,
         ]);

@@ -101,7 +101,7 @@ impl VMState {
         let user = UserCommand::from(postfix);
 
         match user {
-            None => Some(Outcome::Error(VMError::UnknownInstruction)),
+            None => Some(Outcome::Error(VMError::UnknownInstruction(postfix))),
             Some(UserCommand::GET_LENGTH) => {
                 self.stack.push(self.vm.strip.length() as u32);
                 None
@@ -114,7 +114,7 @@ impl VMState {
                         .duration_since(UNIX_EPOCH)
                         .unwrap()
                         .as_secs();
-                    self.stack.push((time & std::u32::MAX as u64) as u32); // Wrap around when we exceed u32::MAX
+                    self.stack.push((time & u32::MAX as u64) as u32); // Wrap around when we exceed u32::MAX
                 }
                 None
             }
@@ -126,7 +126,7 @@ impl VMState {
                         .duration_since(self.start_time)
                         .unwrap()
                         .as_millis();
-                    self.stack.push((time & std::u32::MAX as u128) as u32); // Wrap around when we exceed u32::MAX
+                    self.stack.push((time & u32::MAX as u128) as u32); // Wrap around when we exceed u32::MAX
                 }
                 None
             }
@@ -196,7 +196,7 @@ impl VMState {
         let special = Special::from(postfix);
 
         match special {
-            None => Some(Outcome::Error(VMError::UnknownInstruction)),
+            None => Some(Outcome::Error(VMError::UnknownInstruction(postfix))),
             Some(Special::SWAP) => {
                 if self.stack.len() < 2 {
                     return Some(Outcome::Error(VMError::StackUnderflow));
@@ -212,7 +212,9 @@ impl VMState {
                 println!("DUMP: {:?}", self.stack);
                 None
             }
-            Some(Special::TWOBYTE) => Some(Outcome::Error(VMError::UnknownInstruction)),
+            Some(Special::TWOBYTE) => {
+                Some(Outcome::Error(VMError::UnimplementedInstruction(postfix)))
+            }
         }
     }
 
@@ -310,7 +312,7 @@ impl VMState {
                                     self.pc + 3
                                 }
                             }
-                            _ => return Outcome::Error(VMError::UnknownInstruction),
+                            _ => unreachable!(),
                         };
 
                         if self.vm.config.trace {
@@ -327,10 +329,7 @@ impl VMState {
                             let lhs = self.stack.pop().unwrap();
                             self.stack.push(op.apply(lhs, rhs))
                         } else {
-                            if self.vm.config.trace {
-                                println!("invalid binary postfix: {}", postfix);
-                            }
-                            return Outcome::Error(VMError::UnknownInstruction);
+                            return Outcome::Error(VMError::UnknownInstruction(postfix));
                         }
                     }
                     Prefix::UNARY => {
@@ -339,12 +338,9 @@ impl VMState {
                                 return Outcome::Error(VMError::StackUnderflow);
                             }
                             let lhs = self.stack.pop().unwrap();
-                            self.stack.push(op.apply(lhs));
+                            self.stack.push(op.apply(lhs))
                         } else {
-                            if self.vm.config.trace {
-                                println!("invalid binary postfix: {}", postfix);
-                            }
-                            return Outcome::Error(VMError::UnknownInstruction);
+                            return Outcome::Error(VMError::UnknownInstruction(postfix));
                         }
                     }
                     Prefix::USER => {
@@ -359,13 +355,7 @@ impl VMState {
                     }
                 }
             } else {
-                if self.vm.config.trace {
-                    println!(
-                        "{:04}.\t{:02x}\tUnknown instruction\n",
-                        self.pc, self.program.code[self.pc]
-                    );
-                }
-                break;
+                return Outcome::Error(VMError::UnknownInstruction(self.program.code[self.pc]));
             }
 
             if self.vm.config.trace {

@@ -2,12 +2,7 @@ use animation_lang::program::Program;
 use anyhow::{bail, Result};
 use clap::Parser;
 use reqwest::blocking::Client;
-use std::{
-    fs::File,
-    io::{Read, Write},
-    net::SocketAddr,
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -27,7 +22,8 @@ fn main() -> Result<()> {
     let sourse_code = std::fs::read_to_string(args.in_file)?;
     let p = Program::from_source(&sourse_code)?;
 
-    println!("assembly: {:?}", p);
+    println!("assembly:");
+    println!("{:?}", p);
 
     if let Some(path) = args.out_file {
         println!("Saving program into {:?}", path);
