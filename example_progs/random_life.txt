@@ -9,13 +9,13 @@ loop {
 			r = random(255);
 			g = random(255);
 			b = random(255);
-			set_pixel(n, r, g, b);
+			set_pixel(n-1, r, g, b);
 		}
 	};
 	blit;
-	// sleep for (3-60) frames
-	d = clamp(random(10000), 100, 2000);
-	for(i=d) {
+	// sleep for (0-200) frames
+	s = random(200);
+	for(i=s) {
 		blit; // We need to blit, which will yield control to caller, who suppose to limit frame rate
 	};
 	// Black one random pixel
