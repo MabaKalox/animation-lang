@@ -19,8 +19,8 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let sourse_code = std::fs::read_to_string(args.in_file)?;
-    let p = Program::from_source(&sourse_code)?;
+    let source_code = std::fs::read_to_string(args.in_file)?;
+    let p = Program::from_source(&source_code)?;
 
     println!("assembly:");
     println!("{:?}", p);
