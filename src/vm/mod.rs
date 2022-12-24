@@ -135,11 +135,7 @@ impl VMState {
                     return Some(Outcome::Error(VMError::StackUnderflow));
                 }
                 let v = self.stack.pop().unwrap();
-                // 0000 bbbb gggg rrrr
-                #[allow(clippy::identity_op)]
-                let r = (((v >> 0) as u32) & 0xFF) as u8;
-                let g = (((v >> 8) as u32) & 0xFF) as u8;
-                let b = (((v >> 16) as u32) & 0xFF) as u8;
+                let [r, g, b, _] = v.to_le_bytes();
 
                 let color = RGB8::new(r, g, b);
                 let idx = self.stack.last().unwrap();
@@ -181,11 +177,8 @@ impl VMState {
                 }
                 let v = self.stack.pop().unwrap();
                 let color = self.vm.strip.get_pixel(v);
-                // bbbb gggg rrrr iiii
-                let color_value = (v & 0xFF)
-                    | (color.r as u32) << 8
-                    | (color.g as u32) << 16
-                    | (color.b as u32) << 24;
+                // 000 bbbb gggg rrrr
+                let color_value = u32::from_le_bytes([color.r, color.g, color.b, 0]);
                 self.stack.push(color_value);
                 None
             }
