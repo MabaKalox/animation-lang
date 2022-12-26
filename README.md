@@ -222,7 +222,7 @@ Example of programs in _animation-language_ can be found in `example_progs` dire
 
 Provided runtime implemented though stack based p-code machine, with fairly small instruction set.
 
-Each byte in output program is ether data or instruction, decision is on previous instruction.
+Each byte in output program is ether data or instruction, depends on previous instruction.
 Each instruction is a single byte, where the first nibble (4 bits) determine the instruction type and the next nibble a
 variant.
 
@@ -399,7 +399,7 @@ Virtual Machine states has:
         <tr>
             <td rowspan=2><code>SPECIAL</code></td>
             <td><code>DUMP</code></td>
-            <td>dumps <code>stack</code> to strout</td>
+            <td>dumps <code>stack</code> to stdout</td>
         </tr>
         <tr>
             <td><code>SWAP</code></td>
