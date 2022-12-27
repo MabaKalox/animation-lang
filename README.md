@@ -5,12 +5,13 @@ called `animation-language`. Its goal is to provide method for creating animatio
 strips on the fly, without requiring re-flash of microcontroller which drives led strip.
 
 ## Table of contents
+
 1. [Animation-lang syntax](#animation-language-syntax)
 2. [Virtual Machine details](#virtual-machine-details)
-   1. [Instruction set](#instructions-set--p-codes--)
+    1. [Instruction set](#instructions-set--p-codes--)
 3. [Library usage](#library-usage-example)
-   1. [Basic example](#basic)
-   2. [More examples](#more-examples)
+    1. [Basic example](#basic)
+    2. [More examples](#more-examples)
 4. [Licence](#license)
 
 ## Animation-language syntax
@@ -196,6 +197,7 @@ b = blue(color);
 ### _clamp(val, min, max)_
 
 translates to:
+
 ```
 if (val > max) {
    max
@@ -446,37 +448,37 @@ Virtual Machine states has:
 
 ```rust
 mod receiving_side {
-   use animation_lang::program::Program;
-   use animation_lang::vm::{VMConfig, VMStateConfig, VM};
-   use colored::Colorize;
+    use animation_lang::program::Program;
+    use animation_lang::vm::{VMConfig, VMStateConfig, VM};
+    use colored::Colorize;
 
-   pub fn animation_loop(bin_prog: Vec<u8>) {
-      // Initialize VM with 10 leds with default config
-      let vm = VM::new(10, VMConfig::default());
-      // Start program in VM
-      let vm_state = vm.start(Program::from_binary(bin_prog), VMStateConfig::default());
+    pub fn animation_loop(bin_prog: Vec<u8>) {
+        // Initialize VM with 10 leds with default config
+        let vm = VM::new(10, VMConfig::default());
+        // Start program in VM
+        let vm_state = vm.start(Program::from_binary(bin_prog), VMStateConfig::default());
 
-      // print first 10 frames into terminal
-      for (i, frame_res) in vm_state.take(10).enumerate() {
-         let frame = frame_res.unwrap(); // Could have encountered runtime error
+        // print first 10 frames into terminal
+        for (i, frame_res) in vm_state.take(10).enumerate() {
+            let frame = frame_res.unwrap(); // Could have encountered runtime error
 
-         // Print frame in terminal
-         print!("frame #{}: ", i);
-         for pixel in frame {
-            print!("{}", "■".truecolor(pixel.r, pixel.g, pixel.b));
-         }
-         println!();
-      }
-   }
+            // Print frame in terminal
+            print!("frame #{}: ", i);
+            for pixel in frame {
+                print!("{}", "■".truecolor(pixel.r, pixel.g, pixel.b));
+            }
+            println!();
+        }
+    }
 }
 
 mod sending_side {
-   use animation_lang::compiler::FromSource;
-   use animation_lang::program::Program;
+    use animation_lang::compiler::FromSource;
+    use animation_lang::program::Program;
 
-   pub fn compile_example_prog(source_code: &str) -> Vec<u8> {
-      Program::from_source(source_code).unwrap().code().to_vec()
-   }
+    pub fn compile_example_prog(source_code: &str) -> Vec<u8> {
+        Program::from_source(source_code).unwrap().code().to_vec()
+    }
 }
 
 const EXAMPLE_PROG: &str = "
@@ -494,12 +496,12 @@ loop {
 }";
 
 fn main() {
-   use receiving_side::animation_loop;
-   use sending_side::compile_example_prog;
+    use receiving_side::animation_loop;
+    use sending_side::compile_example_prog;
 
-   let compiled_prog = compile_example_prog(EXAMPLE_PROG);
+    let compiled_prog = compile_example_prog(EXAMPLE_PROG);
 
-   animation_loop(compiled_prog);
+    animation_loop(compiled_prog);
 }
 ```
 
@@ -508,25 +510,18 @@ fn main() {
 Check `examples` directory, each example can be run by:
 
 ```shell
-cargo run --example [example name]
-```
+cargo run --example [example name] -- [args]
+````
 
 #### dummy_client
 
 Renders led strip emulation on the screen and listen for binary progs
 at http POST endpoint `0.0.0.0:8888/send_prog_base64`
 
-```shell
-cargo run --example dummy_client
-```
-
 #### compile
 
 CLI tool to compile source code and optionally save or send
 
-```shell
-cargo run --example compile -- -h
-```
 ```
 Usage: compile [OPTIONS] --in-file <IN_FILE>
 
@@ -536,7 +531,6 @@ Options:
   -s, --send-addr <SEND_ADDR>  address to send base64 encoded program
   -h, --help                   Print help information
 ```
-
 
 ## License
 
