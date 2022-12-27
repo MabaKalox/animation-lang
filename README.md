@@ -505,7 +505,11 @@ fn main() {
 
 ### More examples
 
-In `examples` directory you can find examples, which can be run by:
+Check `examples` directory, each example can be run by:
+
+```shell
+cargo run --example [example name]
+```
 
 #### dummy_client
 
