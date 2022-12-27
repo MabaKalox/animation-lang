@@ -10,7 +10,7 @@ strips on the fly, without requiring re-flash of microcontroller which drives le
    1. [Instruction set](#instructions-set--p-codes--)
 3. [Library usage](#library-usage-example)
    1. [Basic example](#basic)
-   2. [More examples](#other-examples)
+   2. [More examples](#more-examples)
 4. [Licence](#license)
 
 ## Animation-language syntax
