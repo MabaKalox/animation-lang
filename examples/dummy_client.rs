@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use animation_lang::compiler::FromSource;
 use animation_lang::vm::VMState;
 use animation_lang::{
     program::Program,
@@ -26,7 +27,7 @@ const WIDTH: usize =
 const HEIGHT: usize = VLED_HEIGHT + 2 * WINDOW_PADDING;
 const FB_SIZE: usize = WIDTH * HEIGHT;
 //                                                                   / <- FPS here
-const FRAME_TIME: Duration = Duration::from_micros(((1_f32 / 144_f32) * 1_000_000_f32) as u64);
+const FRAME_TIME: Duration = Duration::from_micros(((1_f32 / 32_f32) * 1_000_000_f32) as u64);
 const MAIN_LOOP_TIME: Duration = Duration::from_millis(1);
 const DEFAULT_PROG: &str = include_str!("../../animation_lang/example_progs/blink.txt");
 

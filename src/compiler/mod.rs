@@ -508,8 +508,12 @@ fn program(input: &str) -> IResult<&str, Node> {
     )(input)
 }
 
-impl Program {
-    pub fn from_source(source: &str) -> Result<Program, SyntaxError> {
+pub trait FromSource {
+    fn from_source(source: &str) -> Result<Program, SyntaxError>;
+}
+
+impl FromSource for Program {
+    fn from_source(source: &str) -> Result<Program, SyntaxError> {
         match program(source).finish() {
             Ok((remainder, n)) => {
                 if !remainder.is_empty() {

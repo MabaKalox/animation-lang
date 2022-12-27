@@ -1,3 +1,4 @@
+use animation_lang::compiler::FromSource;
 use animation_lang::program::Program;
 use anyhow::{bail, Result};
 use clap::Parser;

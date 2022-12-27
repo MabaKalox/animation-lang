@@ -4,18 +4,23 @@ animation-lang library is a compiler and vm couple written in Rust for primitive
 called `animation-language`. Its goal is to provide method for creating animations on addressable led
 strips on the fly, without requiring re-flash of microcontroller which drives led strip.
 
-<!-- TODO - content list -->
+## Table of contents
+1. [Animation-lang syntax](#animation-language-syntax)
+2. [Virtual Machine details](#virtual-machine-details)
+   1. [Instruction set](#instructions-set--p-codes--)
+3. [Library usage](#library-usage-example)
+4. [Licence](#license)
 
-## Animation-lang syntax
+## Animation-language syntax
 
 Syntax of this programming language is mostly `c`-like,
 each expression and some statements should be followed by `;`
 
-### Use literals (decimal or hexadecimals)
+### Literals - decimal or hexadecimals numbers
 
 Just numbers like `12` or `0x2F`, minimal value: 0, maxim: 2^32-1
 
-### Do simple mathematics
+### Expressions
 
 basic: `+` `-` `*` `/` `%`
 
@@ -23,7 +28,7 @@ logical: `==` `!=` `>` `>=` `<` `<=`
 
 bitwise: `<<` `>>` `&` `|` `^` `!`
 
-### Define constants
+### Constant variables
 
 Assign value of expression to named constants
 
@@ -32,7 +37,7 @@ some_var1 = 10 + 20;
 some_var2 = 10 << 8;
 ```
 
-You can not create constant with used name, until previous one with such name leaves scope.
+Redefining constant is forbidden, until previous one with such name leaves scope.
 
 ### Statements
 
@@ -146,7 +151,7 @@ blit;
 
 typically used to give caller new frame to display
 
-### Compiler intrinsics (shorthands)
+### Compiler intrinsics
 
 ### _rgb(r_var, g_var, b_var)_
 
@@ -186,9 +191,22 @@ color = get_pixel(5);
 b = blue(color);
 ```
 
-### Comments
+### _clamp(val, min, max)_
 
-Of course you can document your programs!
+translates to:
+```
+if (val > max) {
+   max
+} else {
+   if (val < min) {
+      min
+   } else {
+      val
+   }
+}
+```
+
+### Comments
 
 #### Single line comment
 
@@ -218,7 +236,7 @@ but multiline!
 
 Example of programs in _animation-language_ can be found in `example_progs` directory.
 
-## Virtual Machine
+## Virtual Machine details
 
 Provided runtime implemented though stack based p-code machine, with fairly small instruction set.
 
@@ -337,27 +355,27 @@ Virtual Machine states has:
         </tr>
         <tr>
             <td><code>GT</code></td>
-            <td>return <code>1</code> if <code>lhs</code> > <code>rhs</code>, otherwise <code>0</code></td>
+            <td><code>1</code> if <code>lhs</code> > <code>rhs</code>, otherwise <code>0</code></td>
         </tr>
         <tr>
             <td><code>GTE</code></td>
-            <td>return <code>1</code> if <code>lhs</code> >= <code>rhs</code>, otherwise <code>0</code></td>
+            <td><code>1</code> if <code>lhs</code> >= <code>rhs</code>, otherwise <code>0</code></td>
         </tr>
         <tr>
             <td><code>LT</code></td>
-            <td>return <code>1</code> if <code>lhs</code> < <code>rhs</code>, otherwise <code>0</code></td>
+            <td><code>1</code> if <code>lhs</code> < <code>rhs</code>, otherwise <code>0</code></td>
         </tr>
         <tr>
             <td><code>LTE</code></td>
-            <td>return <code>1</code> if <code>lhs</code> <= <code>rhs</code>, otherwise <code>0</code></td>
+            <td><code>1</code> if <code>lhs</code> <= <code>rhs</code>, otherwise <code>0</code></td>
         </tr>
         <tr>
             <td><code>EQ</code></td>
-            <td>return <code>1</code> if <code>lhs</code> == <code>rhs</code>, otherwise <code>0</code></td>
+            <td><code>1</code> if <code>lhs</code> == <code>rhs</code>, otherwise <code>0</code></td>
         </tr>
         <tr>
             <td><code>NEQ</code></td>
-            <td>return <code>1</code> if <code>lhs</code> != <code>rhs</code>, otherwise <code>0</code></td>
+            <td><code>1</code> if <code>lhs</code> != <code>rhs</code>, otherwise <code>0</code></td>
         </tr>
         <tr>
             <td><code>SHL</code></td>
@@ -424,9 +442,66 @@ Virtual Machine states has:
 
 ### Basic
 
-TODO
+```rust
+mod receiving_side {
+   use animation_lang::program::Program;
+   use animation_lang::vm::{VMConfig, VMStateConfig, VM};
+   use colored::Colorize;
 
-### Detailed
+   pub fn animation_loop(bin_prog: Vec<u8>) {
+      // Initialize VM with 10 leds with default config
+      let vm = VM::new(10, VMConfig::default());
+      // Start program in VM
+      let vm_state = vm.start(Program::from_binary(bin_prog), VMStateConfig::default());
+
+      // print first 10 frames into terminal
+      for (i, frame_res) in vm_state.take(10).enumerate() {
+         let frame = frame_res.unwrap(); // Could have encountered runtime error
+
+         // Print frame in terminal
+         print!("frame #{}: ", i);
+         for pixel in frame {
+            print!("{}", "■".truecolor(pixel.r, pixel.g, pixel.b));
+         }
+         println!();
+      }
+   }
+}
+
+mod sending_side {
+   use animation_lang::compiler::FromSource;
+   use animation_lang::program::Program;
+
+   pub fn compile_example_prog(source_code: &str) -> Vec<u8> {
+      Program::from_source(source_code).unwrap().code().to_vec()
+   }
+}
+
+const EXAMPLE_PROG: &str = "
+loop {
+  for(i=get_length) {
+    // Blank led strip
+    for(n=get_length) {
+      set_pixel(n-1,0,0,0);
+    };
+
+    set_pixel(get_length-i,255,255,255); // Enable next pixel (0, 1, 2...)
+
+    blit; // Yield frame
+  };
+}";
+
+fn main() {
+   use receiving_side::animation_loop;
+   use sending_side::compile_example_prog;
+
+   let compiled_prog = compile_example_prog(EXAMPLE_PROG);
+
+   animation_loop(compiled_prog);
+}
+```
+
+### Other examples
 
 In `examples` directory you can find examples, which can be run by:
 
