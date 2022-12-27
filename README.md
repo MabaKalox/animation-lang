@@ -9,6 +9,8 @@ strips on the fly, without requiring re-flash of microcontroller which drives le
 2. [Virtual Machine details](#virtual-machine-details)
    1. [Instruction set](#instructions-set--p-codes--)
 3. [Library usage](#library-usage-example)
+   1. [Basic example](#basic)
+   2. [More examples](#other-examples)
 4. [Licence](#license)
 
 ## Animation-language syntax
@@ -501,25 +503,36 @@ fn main() {
 }
 ```
 
-### Other examples
+### More examples
 
 In `examples` directory you can find examples, which can be run by:
 
-```shell
-cargo run --example [example name] -- [args, e.g -h]
-```
-
 #### dummy_client
 
-Renders led strip emulation on the screen and listen for compiled progs
+Renders led strip emulation on the screen and listen for binary progs
 at http POST endpoint `0.0.0.0:8888/send_prog_base64`
+
+```shell
+cargo run --example dummy_client
+```
 
 #### compile
 
-CLI tool to compile source code and optionally:
+CLI tool to compile source code and optionally save or send
 
-* save to file
-* send compiled program in base64 encoding in http POST request on provided endpoint
+```shell
+cargo run --example compile -- -h
+```
+```
+Usage: compile [OPTIONS] --in-file <IN_FILE>
+
+Options:
+  -i, --in-file <IN_FILE>      
+  -o, --out-file <OUT_FILE>    
+  -s, --send-addr <SEND_ADDR>  address to send base64 encoded program
+  -h, --help                   Print help information
+```
+
 
 ## License
 
