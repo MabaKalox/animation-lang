@@ -65,8 +65,18 @@ impl fmt::Display for Prefix {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Special {
-    DUMP = 13,
-    TWOBYTE = 14,
+    DUMP = 1,
+    TWOBYTE = 2,
+}
+
+impl Special {
+    pub fn from(code: u8) -> Option<Special> {
+        match code {
+            1 => Some(Special::DUMP),
+            2 => Some(Special::TWOBYTE),
+            _ => None,
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -76,9 +86,9 @@ pub enum Unary {
     INC = 0,
     DEC = 1,
     NOT = 2,
-    NEG = 4,
-    SHL8 = 5,
-    SHR8 = 6,
+    NEG = 3,
+    SHL8 = 4,
+    SHR8 = 5,
 }
 
 impl Unary {
@@ -240,16 +250,6 @@ impl UserCommand {
             4 => Some(UserCommand::BLIT),
             5 => Some(UserCommand::RANDOM_INT),
             6 => Some(UserCommand::GET_PIXEL),
-            _ => None,
-        }
-    }
-}
-
-impl Special {
-    pub fn from(code: u8) -> Option<Special> {
-        match code {
-            13 => Some(Special::DUMP),
-            14 => Some(Special::TWOBYTE),
             _ => None,
         }
     }
