@@ -3,27 +3,27 @@ for(n=get_length) {
 };
 loop {
 	// set random pixel to random color
-	lucky = random(get_length);
+	let lucky = random(get_length);
 	for(n=get_length) {
 		if(n == lucky) {
-			r = random(255);
-			g = random(255);
-			b = random(255);
+			let r = random(255);
+			let g = random(255);
+			let b = random(255);
 			set_pixel(n-1, r, g, b);
 		}
 	};
-	blit;
-	// sleep for (0-200) frames
-	s = random(200);
-	for(i=s) {
-		blit; // We need to blit, which will yield control to caller, who suppose to limit frame rate
-	};
+
 	// Black one random pixel
-	luckyb = random(get_length);
+	let luckyb = random(get_length);
 	for(n=get_length) {
 		if(n == luckyb) {
 			set_pixel(n-1, 0, 0, 0);
 		}
 	};
 	blit;
+
+	// sleep for (0-200) frames
+    for(i=random(20)) {
+        blit; // We need to blit, which will yield control to caller, who suppose to limit frame rate
+    };
 }

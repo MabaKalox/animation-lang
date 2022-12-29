@@ -13,7 +13,7 @@ pub struct Program {
     pub(crate) offset: usize,
 }
 
-pub const PEEKPOP_LIMIT: u8 = 15;
+pub const POSTFIX_MAX: u8 = 15; // U4::MAX
 
 #[derive(Error, Debug)]
 pub enum SyntaxError {
@@ -27,10 +27,10 @@ pub enum SyntaxError {
     ConnotUnnest,
 
     #[error(
-        "cannot peek/pop, limit reached: [{0}] greater then limit [{}]",
-        PEEKPOP_LIMIT
+        "cannot {0}, postfix limit: [{1}] greater then limit [{}]",
+        POSTFIX_MAX
     )]
-    PeekPopLimit(u8),
+    PostfixLimit(&'static str, u8),
 
     #[error("fragment in {0} cannot modify stack size")]
     FragmentCannotModifyStackSize(&'static str),
@@ -79,8 +79,8 @@ impl Program {
     }
 
     pub fn pop(&mut self, n: u8) -> Result<&mut Program, SyntaxError> {
-        if n > PEEKPOP_LIMIT {
-            Err(SyntaxError::PeekPopLimit(n))
+        if n > POSTFIX_MAX {
+            Err(SyntaxError::PostfixLimit("pop", n))
         } else {
             self.stack_size -= i32::from(n);
             Ok(self.write(&[Prefix::POP as u8 | n])) // POP n
@@ -94,11 +94,19 @@ impl Program {
     }
 
     pub fn peek(&mut self, n: u8) -> Result<&mut Program, SyntaxError> {
-        if n > PEEKPOP_LIMIT {
-            Err(SyntaxError::PeekPopLimit(n))
+        if n > POSTFIX_MAX {
+            Err(SyntaxError::PostfixLimit("peek", n))
         } else {
             self.stack_size += 1;
             Ok(self.write(&[Prefix::PEEK as u8 | n])) // PEEK n
+        }
+    }
+
+    pub fn swap(&mut self, n: u8) -> Result<&mut Program, SyntaxError> {
+        if n > POSTFIX_MAX {
+            Err(SyntaxError::PostfixLimit("swap", n))
+        } else {
+            Ok(self.write(&[Prefix::SWAP as u8 | n]))
         }
     }
 
@@ -114,7 +122,6 @@ impl Program {
     pub fn special(&mut self, u: Special) -> &mut Program {
         self.stack_size += match u {
             Special::DUMP => 0,
-            Special::SWAP => 0,
             Special::TWOBYTE => unimplemented!(),
         };
         self.write(&[Prefix::SPECIAL as u8 | u as u8]) // SPECIAL u
@@ -313,10 +320,6 @@ impl Program {
 
     pub fn dup(&mut self) -> Result<&mut Program, SyntaxError> {
         self.peek(0)
-    }
-
-    pub fn swap(&mut self) -> &mut Program {
-        self.special(Special::SWAP)
     }
 
     pub fn set_pixel(&mut self) -> &mut Program {

@@ -11,7 +11,8 @@ pub enum Node {
     Loop(Vec<Node>),
     If(Expression, Vec<Node>),
     IfElse(Expression, Vec<Node>, Vec<Node>),
-    Assignment(String, Expression),
+    NewVarAssignment(String, Expression),
+    VarAssignment(String, Expression),
     For(String, Expression, Vec<Node>),
 }
 
@@ -219,9 +220,20 @@ impl Node {
                 program.pop(1)?;
                 scope.level = old_level;
             }
-            Node::Assignment(variable_name, expression) => {
+            Node::NewVarAssignment(variable_name, expression) => {
                 expression.assemble(program, scope)?;
                 scope.define_variable(variable_name)?; // Value left on the stack but cleaned up later by Scope::assemble_teardown
+            }
+            Node::VarAssignment(variable_name, expression) => {
+                let old_level = scope.level;
+                expression.assemble(program, scope)?;
+                if let Some(relative) = scope.index_of(variable_name) {
+                    program.swap((relative) as u8)?;
+                    program.pop(1)?;
+                } else {
+                    return Err(SyntaxError::UndefinedVariable(variable_name.to_string()));
+                }
+                scope.level = old_level;
             }
         }
         Ok(())
@@ -302,7 +314,7 @@ impl Expression {
                         // value < min
                         program.if_not_zero(|b| {
                             b.pop(1)?; // [min, value]
-                            b.swap(); // [value, min]
+                            b.swap(1)?; // [value, min]
                             b.pop(1)?; // [min]
                             b.leave_on_stack(-2);
                             Ok(())
@@ -325,7 +337,7 @@ impl Expression {
                         // previous_result > max
                         program.if_not_zero(|b| {
                             b.pop(1)?; // [max, previous_result]
-                            b.swap(); // [previous_result, max]
+                            b.swap(1)?; // [previous_result, max]
                             b.pop(1)?; // [max]
                             b.leave_on_stack(-2);
                             Ok(())

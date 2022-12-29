@@ -131,29 +131,27 @@ impl VMState {
                 None
             }
             Some(UserCommand::SET_PIXEL) => {
-                if self.stack.is_empty() {
-                    return Some(Outcome::Error(VMError::StackUnderflow));
+                if let (Some(v), Some(idx)) = (self.stack.pop(), self.stack.last()) {
+                    let [r, g, b, _] = v.to_le_bytes();
+                    let color = RGB8::new(r, g, b);
+
+                    if self.vm.config.trace {
+                        print!("\tset_pixel {} idx={} color={:?}", v, idx, color);
+                    }
+
+                    if *idx >= self.vm.strip.length() {
+                        return Some(Outcome::Error(VMError::RuntimeError(format!(
+                            "index {} exceeds strip length {}",
+                            *idx,
+                            self.vm.strip.length()
+                        ))));
+                    }
+
+                    self.vm.strip.set_pixel(*idx, color);
+                    None
+                } else {
+                    Some(Outcome::Error(VMError::StackUnderflow))
                 }
-                let v = self.stack.pop().unwrap();
-                let [r, g, b, _] = v.to_le_bytes();
-
-                let color = RGB8::new(r, g, b);
-                let idx = self.stack.last().unwrap();
-
-                if self.vm.config.trace {
-                    print!("\tset_pixel {} idx={} color={:?}", v, idx, color);
-                }
-
-                if *idx >= self.vm.strip.length() {
-                    return Some(Outcome::Error(VMError::RuntimeError(format!(
-                        "index {} exceeds strip length {}",
-                        *idx,
-                        self.vm.strip.length()
-                    ))));
-                }
-
-                self.vm.strip.set_pixel(*idx, color);
-                None
             }
             Some(UserCommand::BLIT) => {
                 if self.vm.config.trace {
@@ -164,23 +162,22 @@ impl VMState {
                 Some(Outcome::BLIT(self.vm.strip.export()))
             }
             Some(UserCommand::RANDOM_INT) => {
-                if self.stack.is_empty() {
-                    return Some(Outcome::Error(VMError::StackUnderflow));
+                if let Some(v) = self.stack.pop() {
+                    self.stack.push(self.config.rng.gen_range(0..v));
+                    None
+                } else {
+                    Some(Outcome::Error(VMError::StackUnderflow))
                 }
-                let v = self.stack.pop().unwrap();
-                self.stack.push(self.config.rng.gen_range(0..v));
-                None
             }
             Some(UserCommand::GET_PIXEL) => {
-                if self.stack.is_empty() {
-                    return Some(Outcome::Error(VMError::StackUnderflow));
+                if let Some(v) = self.stack.pop() {
+                    let color = self.vm.strip.get_pixel(v);
+                    let color_value = u32::from_le_bytes([color.r, color.g, color.b, 0]);
+                    self.stack.push(color_value);
+                    None
+                } else {
+                    Some(Outcome::Error(VMError::StackUnderflow))
                 }
-                let v = self.stack.pop().unwrap();
-                let color = self.vm.strip.get_pixel(v);
-                // 000 bbbb gggg rrrr
-                let color_value = u32::from_le_bytes([color.r, color.g, color.b, 0]);
-                self.stack.push(color_value);
-                None
             }
         }
     }
@@ -190,16 +187,6 @@ impl VMState {
 
         match special {
             None => Some(Outcome::Error(VMError::UnknownInstruction(postfix))),
-            Some(Special::SWAP) => {
-                if self.stack.len() < 2 {
-                    return Some(Outcome::Error(VMError::StackUnderflow));
-                }
-                let lhs = self.stack.pop().unwrap();
-                let rhs = self.stack.pop().unwrap();
-                self.stack.push(lhs);
-                self.stack.push(rhs);
-                None
-            }
             Some(Special::DUMP) => {
                 // DUMP
                 println!("DUMP: {:?}", self.stack);
@@ -252,29 +239,31 @@ impl VMState {
                         self.pushb(postfix);
                     }
                     Prefix::POP => {
-                        assert!(
-                            (postfix as usize) <= self.stack.len(),
-                            "cannot pop beyond stack (pop {} elements > stack size {})!",
-                            postfix,
-                            self.stack.len()
-                        );
+                        if postfix as usize > self.stack.len() {
+                            return Outcome::Error(VMError::StackUnderflow);
+                        }
 
                         for _ in 0..postfix {
                             let _ = self.stack.pop();
                         }
                     }
                     Prefix::PEEK => {
-                        assert!(
-                            (postfix as usize) < self.stack.len(),
-                            "cannot peek beyond stack (index {} > stack size {})!",
-                            postfix,
-                            self.stack.len()
-                        );
+                        if postfix as usize >= self.stack.len() {
+                            return Outcome::Error(VMError::StackUnderflow);
+                        }
                         let val = self.stack[self.stack.len() - (postfix as usize) - 1];
                         if self.vm.config.trace {
                             print!("\tindex={} v={}", postfix, val);
                         }
                         self.stack.push(val);
+                    }
+                    Prefix::SWAP => {
+                        if postfix as usize >= self.stack.len() {
+                            return Outcome::Error(VMError::StackUnderflow);
+                        }
+                        let last_i = self.stack.len() - 1;
+                        let target_i = last_i - (postfix as usize);
+                        self.stack.swap(target_i, last_i);
                     }
                     Prefix::JMP | Prefix::JZ | Prefix::JNZ => {
                         let target = (u32::from(self.program.code[self.pc + 1])
@@ -284,25 +273,25 @@ impl VMState {
                         self.pc = match i {
                             Prefix::JMP => target,
                             Prefix::JZ => {
-                                if self.stack.is_empty() {
-                                    return Outcome::Error(VMError::StackUnderflow);
-                                }
-                                let head = self.stack.last().unwrap();
-                                if *head == 0 {
-                                    target
+                                if let Some(head) = self.stack.last() {
+                                    if *head == 0 {
+                                        target
+                                    } else {
+                                        self.pc + 3
+                                    }
                                 } else {
-                                    self.pc + 3
+                                    return Outcome::Error(VMError::StackUnderflow);
                                 }
                             }
                             Prefix::JNZ => {
-                                if self.stack.is_empty() {
-                                    return Outcome::Error(VMError::StackUnderflow);
-                                }
-                                let head = self.stack.last().unwrap();
-                                if *head != 0 {
-                                    target
+                                if let Some(head) = self.stack.last() {
+                                    if *head != 0 {
+                                        target
+                                    } else {
+                                        self.pc + 3
+                                    }
                                 } else {
-                                    self.pc + 3
+                                    return Outcome::Error(VMError::StackUnderflow);
                                 }
                             }
                             _ => unreachable!(),
@@ -315,23 +304,22 @@ impl VMState {
                     }
                     Prefix::BINARY => {
                         if let Some(op) = Binary::from(postfix) {
-                            if self.stack.len() < 2 {
+                            if let (Some(rhs), Some(lhs)) = (self.stack.pop(), self.stack.pop()) {
+                                self.stack.push(op.apply(lhs, rhs))
+                            } else {
                                 return Outcome::Error(VMError::StackUnderflow);
                             }
-                            let rhs = self.stack.pop().unwrap();
-                            let lhs = self.stack.pop().unwrap();
-                            self.stack.push(op.apply(lhs, rhs))
                         } else {
                             return Outcome::Error(VMError::UnknownInstruction(postfix));
                         }
                     }
                     Prefix::UNARY => {
                         if let Some(op) = Unary::from(postfix) {
-                            if self.stack.is_empty() {
+                            if let Some(lhs) = self.stack.pop() {
+                                self.stack.push(op.apply(lhs))
+                            } else {
                                 return Outcome::Error(VMError::StackUnderflow);
                             }
-                            let lhs = self.stack.pop().unwrap();
-                            self.stack.push(op.apply(lhs))
                         } else {
                             return Outcome::Error(VMError::UnknownInstruction(postfix));
                         }

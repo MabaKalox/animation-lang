@@ -33,24 +33,21 @@ mod sending_side {
 }
 
 const EXAMPLE_PROG: &str = "
+let on = 0;
 loop {
-  for(i=get_length) {
-    // Blank led strip
-    for(n=get_length) {
-      set_pixel(n-1,0,0,0);
-    };
-
-    set_pixel(get_length-i,255,255,255); // Enable next pixel (0, 1, 2...)
-
-    blit; // Yield frame
-  };
+  on = ~on & 0x1;
+  blit;
 }";
 
 fn main() {
+    use animation_lang::program::Program;
     use receiving_side::animation_loop;
     use sending_side::compile_example_prog;
 
     let compiled_prog = compile_example_prog(EXAMPLE_PROG);
+
+    println!("Disassembly: ");
+    println!("{:?}", Program::from_binary(compiled_prog.clone()));
 
     animation_loop(compiled_prog);
 }

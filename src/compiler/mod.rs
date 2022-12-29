@@ -125,9 +125,9 @@ fn comparison(input: &str) -> IResult<&str, Expression> {
 
 fn unaries(input: &str) -> IResult<&str, Expression> {
     alt((
-        map(pair(alt((tag("-"), tag("!"))), unaries), |t| match t.0 {
+        map(pair(alt((tag("-"), tag("~"))), unaries), |t| match t.0 {
             "-" => Expression::Unary(instructions::Unary::NEG, Box::new(t.1)),
-            "!" => Expression::Unary(instructions::Unary::NOT, Box::new(t.1)),
+            "~" => Expression::Unary(instructions::Unary::NOT, Box::new(t.1)),
             _ => unreachable!(),
         }),
         binaries,
@@ -463,14 +463,26 @@ fn for_statement(input: &str) -> IResult<&str, Node> {
     )(input)
 }
 
-fn assigment_statement(input: &str) -> IResult<&str, Node> {
+fn new_var_assigment_statement(input: &str) -> IResult<&str, Node> {
+    map(
+        tuple((
+            terminated(tag("let"), sp),
+            variable_name,
+            preceded(sp, terminated(tag("="), sp)),
+            expression,
+        )),
+        |t| Node::NewVarAssignment(t.1.to_string(), t.3),
+    )(input)
+}
+
+fn var_assigment_statement(input: &str) -> IResult<&str, Node> {
     map(
         tuple((
             variable_name,
             preceded(sp, terminated(tag("="), sp)),
             expression,
         )),
-        |t| Node::Assignment(t.0.to_string(), t.2),
+        |t| Node::VarAssignment(t.0.to_string(), t.2),
     )(input)
 }
 
@@ -481,7 +493,8 @@ fn statement(input: &str) -> IResult<&str, Node> {
             alt((
                 user_statement,
                 special_statement,
-                assigment_statement,
+                new_var_assigment_statement,
+                var_assigment_statement,
                 if_statement,
                 for_statement,
                 loop_statement,

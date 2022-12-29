@@ -13,6 +13,7 @@ pub enum Prefix {
     JNZ = 0x60,
     UNARY = 0x70,
     BINARY = 0x80,
+    SWAP = 0x90,
     USER = 0xE0,
     SPECIAL = 0xF0,
 }
@@ -29,6 +30,7 @@ impl Prefix {
             0x60 => Some(Prefix::JNZ),
             0x70 => Some(Prefix::UNARY),
             0x80 => Some(Prefix::BINARY),
+            0x90 => Some(Prefix::SWAP),
             0xE0 => Some(Prefix::USER),
             0xF0 => Some(Prefix::SPECIAL),
             _ => None,
@@ -45,6 +47,7 @@ impl fmt::Display for Prefix {
                 Prefix::POP => "POP",
                 Prefix::PUSHB => "PUSHB",
                 Prefix::PEEK => "PEEKB",
+                Prefix::SWAP => "SWAP",
                 Prefix::PUSHI => "PUSHI",
                 Prefix::JMP => "JMP",
                 Prefix::JZ => "JZ",
@@ -62,7 +65,6 @@ impl fmt::Display for Prefix {
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Special {
-    SWAP = 12,
     DUMP = 13,
     TWOBYTE = 14,
 }
@@ -74,9 +76,9 @@ pub enum Unary {
     INC = 0,
     DEC = 1,
     NOT = 2,
-    NEG = 3,
-    SHL8 = 4,
-    SHR8 = 5,
+    NEG = 4,
+    SHL8 = 5,
+    SHR8 = 6,
 }
 
 impl Unary {
@@ -246,7 +248,6 @@ impl UserCommand {
 impl Special {
     pub fn from(code: u8) -> Option<Special> {
         match code {
-            12 => Some(Special::SWAP),
             13 => Some(Special::DUMP),
             14 => Some(Special::TWOBYTE),
             _ => None,

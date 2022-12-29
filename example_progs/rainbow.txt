@@ -7,9 +7,9 @@ blit;
 loop {
 	for(color = 255) {
 		for(i = get_length) {
-			r = (color + i) & 0xFF;
-			g = (color + i + 0xC0) & 0xFF;
-			b = (color + i + 0xB0) & 0xFF;
+			let r = (color + i) & 0xFF;
+			let g = (color + i + 0xC0) & 0xFF;
+			let b = (color + i + 0xB0) & 0xFF;
 			set_pixel(i-1, r, g, b);
 		};
 		blit;

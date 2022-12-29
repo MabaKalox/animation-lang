@@ -31,16 +31,21 @@ logical: `==` `!=` `>` `>=` `<` `<=`
 
 bitwise: `<<` `>>` `&` `|` `^` `!`
 
-### Constant variables
+### Variable
 
-Assign value of expression to named constants
+#### Define new variables
 
 ```
-some_var1 = 10 + 20;
-some_var2 = 10 << 8;
+let some_var = 10 + 3;
 ```
 
-Redefining constant is forbidden, until previous one with such name leaves scope.
+#### Modify existing one
+
+```
+some_var = 0;
+```
+
+Uninitialized variables forbidden.
 
 ### Statements
 
@@ -286,6 +291,11 @@ Virtual Machine states has:
             <td>push integer at <code>stack[index]</code> on <code>stack</code></td>
         </tr>
         <tr>
+            <td rowspan=1><code>SWAP</code></td>
+            <td><code>0x00-0x0F</code></td>
+            <td>swap value at <code>stack[index]</code> with last value on <code>stack</code></td>
+        </tr>
+        <tr>
             <td rowspan=1><code>JMP</code></td>
             <td><code>ignored</code></td>
             <td>extracts address from next 2 bytes in <code>mem</code> and jumps to it</td>
@@ -419,13 +429,9 @@ Virtual Machine states has:
             <td>pop int from <code>stack</code> as <code>rand_max</code>, then push random number in range <code>[0..max]</code>(exclusive) on <code>stack</code></td>
         </tr>
         <tr>
-            <td rowspan=2><code>SPECIAL</code></td>
+            <td rowspan=1><code>SPECIAL</code></td>
             <td><code>DUMP</code></td>
             <td>dumps <code>stack</code> to stdout</td>
-        </tr>
-        <tr>
-            <td><code>SWAP</code></td>
-            <td>swaps last two values on <code>stack</code></td>
         </tr>
     </tbody>
 </table>
@@ -496,10 +502,14 @@ loop {
 }";
 
 fn main() {
+    use animation_lang::program::Program;
     use receiving_side::animation_loop;
     use sending_side::compile_example_prog;
 
     let compiled_prog = compile_example_prog(EXAMPLE_PROG);
+
+    println!("Disassembly: ");
+    println!("{:?}", Program::from_binary(compiled_prog.clone()));
 
     animation_loop(compiled_prog);
 }

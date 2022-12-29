@@ -1,5 +1,5 @@
 loop {
-	lucky = random(get_length);
+	let lucky = random(get_length);
 	for(n=get_length) {
 		if(n == lucky) {
 			p = get_pixel(n);
