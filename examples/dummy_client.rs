@@ -15,8 +15,8 @@ use smart_leds_trait::SmartLedsWrite;
 use tiny_http::{Method, Response, Server, StatusCode};
 
 const VLED_QUANTITY: usize = 50;
-const VLED_WIDTH: usize = 15;
-const VLED_HEIGHT: usize = 15;
+const VLED_WIDTH: usize = 30;
+const VLED_HEIGHT: usize = 30;
 const VLED_H_SPACING: usize = 3;
 const VLED_BORDER_WIDTH: usize = 0;
 

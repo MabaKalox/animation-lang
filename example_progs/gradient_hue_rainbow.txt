@@ -1,0 +1,67 @@
+/* Clear strip */
+for(i = get_length) {
+    set_pixel(i-1, 0, 0, 0);
+};
+blit;
+
+loop {
+    for(color = 255) {
+        for(li=get_length) {
+            let i = 255 - color + li;
+            if(i>255) {
+               i = i - 255;
+            };
+            let r = i;
+            let g = i + 85;
+            let b = i + 85 * 2;
+            if(g > 255) {
+              g = g - 255;
+            };
+            if(b > 255) {
+              b = b - 255;
+            };
+            if(r <= 42) {
+                r = r * 6;
+            } else {
+                if(r <= 125) {
+                    r = 255;
+                } else {
+                    if(r < 168) {
+                        r = 255 - ((r-125) * 6);
+                    } else {
+                        r = 0;
+                    };
+                };
+            };
+            if(g <= 42) {
+                g = g * 6;
+            } else {
+                if(g <= 125) {
+                    g = 255;
+                } else {
+                    if(g < 168) {
+                        g = 255 - ((g-125) * 6);
+                    } else {
+                        g = 0;
+                    };
+                };
+            };
+            if(b <= 42) {
+                b = b * 6;
+            } else {
+                if(b <= 125) {
+                    b = 255;
+                } else {
+                    if(b < 168) {
+                        b = 255 - ((b-125) * 6);
+                    } else {
+                        b = 0;
+                    };
+                };
+            };
+            set_pixel(li-1,r,g,b);
+        };
+
+        blit;
+    }
+}

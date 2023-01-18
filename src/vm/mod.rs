@@ -305,7 +305,10 @@ impl VMState {
                     Prefix::BINARY => {
                         if let Some(op) = Binary::from(postfix) {
                             if let (Some(rhs), Some(lhs)) = (self.stack.pop(), self.stack.pop()) {
-                                self.stack.push(op.apply(lhs, rhs))
+                                match op.apply(lhs, rhs) {
+                                    Ok(v) => self.stack.push(v),
+                                    Err(e) => return Outcome::Error(e),
+                                }
                             } else {
                                 return Outcome::Error(VMError::StackUnderflow);
                             }

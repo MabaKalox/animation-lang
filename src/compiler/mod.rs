@@ -549,9 +549,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn main() {
+    fn check_decimal_literal() {
         assert_eq!(expression("0x0000CC"), Ok(("", Expression::Literal(204))));
+    }
+
+    #[test]
+    fn check_hex_literal() {
         assert_eq!(expression("1337"), Ok(("", Expression::Literal(1337))));
+    }
+
+    #[test]
+    fn check_parsing_addition() {
         assert_eq!(
             expression("1+2"),
             Ok((
@@ -563,13 +571,90 @@ mod tests {
                 )
             ))
         );
+    }
 
-        if let Ok((remainder, n)) = program("loop{if(1+2*3>4){yield};\ndump}") {
+    #[test]
+    fn check_parsing_multiplication() {
+        assert_eq!(
+            expression("1*2"),
+            Ok((
+                "",
+                Expression::Binary(
+                    Box::new(Expression::Literal(1)),
+                    instructions::Binary::MUL,
+                    Box::new(Expression::Literal(2))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn check_parsing_subtraction() {
+        assert_eq!(
+            expression("1-2"),
+            Ok((
+                "",
+                Expression::Binary(
+                    Box::new(Expression::Literal(1)),
+                    instructions::Binary::SUB,
+                    Box::new(Expression::Literal(2))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn check_parsing_division() {
+        assert_eq!(
+            expression("1/2"),
+            Ok((
+                "",
+                Expression::Binary(
+                    Box::new(Expression::Literal(1)),
+                    instructions::Binary::DIV,
+                    Box::new(Expression::Literal(2))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn check_parsing_mod() {
+        assert_eq!(
+            expression("1%2"),
+            Ok((
+                "",
+                Expression::Binary(
+                    Box::new(Expression::Literal(1)),
+                    instructions::Binary::MOD,
+                    Box::new(Expression::Literal(2))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn check_compiler_basic_program() {
+        if let Ok((remainder, n)) = program("loop{if(1+2*3>4){blit;};\ndump}") {
             assert_eq!(remainder, "");
             let mut program = Program::new();
             let mut scope = Scope::new();
-            n.assemble(&mut program, &mut scope);
-            scope.assemble_teardown(&mut program);
+            n.assemble(&mut program, &mut scope).unwrap();
+            scope.assemble_teardown(&mut program).unwrap();
         }
+    }
+
+    #[test]
+    #[should_panic]
+    fn check_undefined_variable() {
+        let (remainder, _) = program("loop{some_undefined_variable;};").unwrap();
+        assert_eq!(remainder, "");
+    }
+
+    #[test]
+    #[should_panic]
+    fn check_not_terminated_line() {
+        let (remainder, _) = program("loop{let a=1+1\n1+2};").unwrap();
+        assert_eq!(remainder, "");
     }
 }

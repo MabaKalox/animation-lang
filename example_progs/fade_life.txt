@@ -1,0 +1,33 @@
+let steps = 30;
+loop {
+  let lucky = random(get_length);
+  let r = random(255);
+  let g = random(255);
+  let b = random(255);
+
+  let fadea = random(get_length);
+  let fadeb = random(get_length);
+  let fadec = random(get_length);
+  let fadeacolor = get_pixel(fadea);
+  let fadebcolor = get_pixel(fadeb);
+  let fadeccolor = get_pixel(fadec);
+
+  let w = 0;
+  for(i=steps) {
+    w = w + 1;
+
+    // Ligth up
+    set_pixel(lucky, r * w / steps, g * w / steps, b * w / steps);
+
+    // Fade 1
+    set_pixel(fadea, red(fadeacolor) * i / steps, green(fadeacolor) * i / steps, blue(fadeacolor) * i / steps);
+
+    // Fade 2
+    set_pixel(fadeb, red(fadebcolor) * i / steps, green(fadebcolor) * i / steps, blue(fadebcolor) * i / steps);
+
+    // Fade 3
+    set_pixel(fadec, red(fadeccolor) * i / steps, green(fadeccolor) * i / steps, blue(fadeccolor) * i / steps);
+
+    blit;
+  };
+}

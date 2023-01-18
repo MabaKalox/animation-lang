@@ -1,3 +1,4 @@
+use crate::vm::errors::VMError;
 use std::fmt;
 
 #[allow(dead_code)]
@@ -178,24 +179,27 @@ impl Binary {
         }
     }
 
-    pub fn apply(self, lhs: u32, rhs: u32) -> u32 {
+    pub fn apply(self, lhs: u32, rhs: u32) -> Result<u32, VMError> {
         match self {
-            Binary::ADD => lhs + rhs,
-            Binary::SUB => lhs - rhs,
-            Binary::MUL => lhs * rhs,
-            Binary::DIV => lhs / rhs,
-            Binary::MOD => lhs % rhs,
-            Binary::AND => lhs & rhs,
-            Binary::OR => lhs | rhs,
-            Binary::SHL => lhs << rhs,
-            Binary::SHR => lhs >> rhs,
-            Binary::XOR => lhs ^ rhs,
-            Binary::EQ => u32::from(lhs == rhs),
-            Binary::NEQ => u32::from(lhs != rhs),
-            Binary::GT => u32::from(lhs > rhs),
-            Binary::GTE => u32::from(lhs >= rhs),
-            Binary::LT => u32::from(lhs < rhs),
-            Binary::LTE => u32::from(lhs <= rhs),
+            Binary::ADD => Ok(lhs + rhs),
+            Binary::SUB => Ok(lhs - rhs),
+            Binary::MUL => Ok(lhs * rhs),
+            Binary::DIV => lhs.checked_div(rhs).ok_or(VMError::RuntimeError(format!(
+                "Error during division, lhs: {}, rhs: {}, overflow/underflow/division by zero",
+                lhs, rhs
+            ))),
+            Binary::MOD => Ok(lhs % rhs),
+            Binary::AND => Ok(lhs & rhs),
+            Binary::OR => Ok(lhs | rhs),
+            Binary::SHL => Ok(lhs << rhs),
+            Binary::SHR => Ok(lhs >> rhs),
+            Binary::XOR => Ok(lhs ^ rhs),
+            Binary::EQ => Ok(u32::from(lhs == rhs)),
+            Binary::NEQ => Ok(u32::from(lhs != rhs)),
+            Binary::GT => Ok(u32::from(lhs > rhs)),
+            Binary::GTE => Ok(u32::from(lhs >= rhs)),
+            Binary::LT => Ok(u32::from(lhs < rhs)),
+            Binary::LTE => Ok(u32::from(lhs <= rhs)),
         }
     }
 }

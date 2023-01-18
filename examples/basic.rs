@@ -33,10 +33,17 @@ mod sending_side {
 }
 
 const EXAMPLE_PROG: &str = "
-let on = 0;
 loop {
-  on = ~on & 0x1;
-  blit;
+  for(i=get_length) {
+    // Blank led strip
+    for(n=get_length) {
+      set_pixel(n-1,0,0,0);
+    };
+
+    set_pixel(get_length-i,255,255,255); // Enable next pixel (0, 1, 2...)
+
+    blit; // Yield frame
+  };
 }";
 
 fn main() {
