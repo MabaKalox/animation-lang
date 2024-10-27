@@ -17,16 +17,16 @@ loop {
     w = w + 1;
 
     // Ligth up
-    set_pixel(lucky, r * w / steps, g * w / steps, b * w / steps);
+    set_pixel(lucky, r * w / steps, g * w / steps, b * w / steps, 0);
 
     // Fade 1
-    set_pixel(fadea, red(fadeacolor) * i / steps, green(fadeacolor) * i / steps, blue(fadeacolor) * i / steps);
+    set_pixel(fadea, red(fadeacolor) * i / steps, green(fadeacolor) * i / steps, blue(fadeacolor) * i / steps, 0);
 
     // Fade 2
-    set_pixel(fadeb, red(fadebcolor) * i / steps, green(fadebcolor) * i / steps, blue(fadebcolor) * i / steps);
+    set_pixel(fadeb, red(fadebcolor) * i / steps, green(fadebcolor) * i / steps, blue(fadebcolor) * i / steps, 0);
 
     // Fade 3
-    set_pixel(fadec, red(fadeccolor) * i / steps, green(fadeccolor) * i / steps, blue(fadeccolor) * i / steps);
+    set_pixel(fadec, red(fadeccolor) * i / steps, green(fadeccolor) * i / steps, blue(fadeccolor) * i / steps, 0);
 
     blit;
   };

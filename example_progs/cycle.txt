@@ -6,7 +6,7 @@ loop {
 	let b = (get_wall_time / p / 5 % 8) * 32;
 
 	for(i = get_length) {
-		set_pixel(i - 1, r, g, b);
+		set_pixel(i - 1, r, g, b, 0);
 	};
 
 	blit;

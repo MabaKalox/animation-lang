@@ -2,9 +2,9 @@ loop {
 	let lucky = random(get_length);
 	for(n=get_length) {
 		if(n == lucky) {
-			p = get_pixel(n);
-			r = (p & 0xFF00) >> 8;
-			set_pixel(n, clamp(r,0,254)+1, 0, 0);
+			let p = get_pixel(n);
+			let r = (p & 0xFF00) >> 8;
+			set_pixel(n, clamp(r,0,254)+1, 0, 0, 0);
 		}
 	};
 	blit;

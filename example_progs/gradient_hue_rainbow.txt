@@ -1,6 +1,6 @@
 /* Clear strip */
 for(i = get_length) {
-    set_pixel(i-1, 0, 0, 0);
+    set_pixel(i-1, 0, 0, 0, 0);
 };
 blit;
 
@@ -59,7 +59,7 @@ loop {
                     };
                 };
             };
-            set_pixel(li-1,r,g,b);
+            set_pixel(li-1,r,g,b, 0);
         };
 
         blit;

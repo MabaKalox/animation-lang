@@ -5,5 +5,5 @@ let d=a<<8;
 let e=a>>1;
 let f=a>>4;
 let g=a>>8;
-set_pixel(a-1, b, c, d);
+set_pixel(a-1, b, c, d, 0);
 blit;
