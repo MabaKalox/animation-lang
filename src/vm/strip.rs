@@ -23,7 +23,7 @@ impl DummyLedStrip {
         self.buf[idx as usize]
     }
 
-    pub fn export(&self) -> Box<dyn Iterator<Item = RGBW8> + Send> {
+    pub fn export(&self) -> Box<dyn Iterator<Item =RGBW8> + Send> {
         Box::new(self.buf.clone().into_iter())
     }
 

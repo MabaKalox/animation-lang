@@ -1,16 +1,19 @@
-use std::time::{Duration, Instant};
-
 use animation_lang::compiler::FromSource;
 use animation_lang::vm::RGBW8;
 use animation_lang::{
     program::Program,
     vm::{VMState, VMStateConfig, VM},
 };
+use base64::{
+    engine::general_purpose::STANDARD as BASE64_ENGINE,
+    Engine
+};
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{IntoStorage, Point, RgbColor, Size};
 use embedded_graphics::primitives::{Primitive, PrimitiveStyleBuilder, Rectangle, StrokeAlignment};
 use minifb::{Key, Window, WindowOptions};
 use smart_leds_trait::{SmartLedsWrite, White};
+use std::time::{Duration, Instant};
 use tiny_http::{Method, Response, Server, StatusCode};
 
 const VLED_QUANTITY: usize = 50;
@@ -134,7 +137,7 @@ fn try_receive_new_prob(server: &mut Server) -> Option<Vec<u8>> {
                     let mut body = Vec::new();
                     req.as_reader().read_to_end(&mut body).unwrap();
 
-                    match base64::decode(&body) {
+                    match BASE64_ENGINE.decode(&body) {
                         Ok(prog) => {
                             req.respond(Response::empty(200)).unwrap();
                             Some(prog)
@@ -209,10 +212,10 @@ impl SmartLedsWrite for VLedStrip {
 
     fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
     where
-        T: Iterator<Item = I>,
+        T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
-        for (i, v) in iterator.take(self.state.len()).enumerate() {
+        for (i, v) in iterator.into_iter().take(self.state.len()).enumerate() {
             self.state[i] = v.into();
         }
         Ok(())

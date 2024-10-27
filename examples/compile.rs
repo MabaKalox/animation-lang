@@ -4,6 +4,10 @@ use anyhow::{bail, Result};
 use clap::Parser;
 use reqwest::blocking::Client;
 use std::path::PathBuf;
+use base64::{
+    engine::general_purpose::STANDARD as BASE64_ENGINE,
+    Engine
+};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -35,7 +39,7 @@ fn main() -> Result<()> {
         println!("Sending program to {}", addr);
         let resp = Client::new()
             .post(addr)
-            .body(base64::encode(p.code()))
+            .body(BASE64_ENGINE.encode(p.code()))
             .send()?;
 
         if resp.status() != 200 {

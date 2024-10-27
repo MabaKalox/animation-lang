@@ -46,7 +46,7 @@ pub struct VMConfig {
 pub enum Outcome {
     Ended,
     Error(VMError),
-    BLIT(Box<dyn Iterator<Item = RGBW8> + Send>),
+    BLIT(Box<dyn Iterator<Item = RGBW<u8, u8>> + Send>),
 }
 
 impl VMState {
@@ -105,7 +105,7 @@ impl VMState {
         match user {
             None => Some(Outcome::Error(VMError::UnknownInstruction(postfix))),
             Some(UserCommand::GET_LENGTH) => {
-                self.stack.push(self.vm.strip.length() as u32);
+                self.stack.push(self.vm.strip.length());
                 None
             }
             Some(UserCommand::GET_WALL_TIME) => {
@@ -383,7 +383,7 @@ impl VM {
 }
 
 impl Iterator for VMState {
-    type Item = Result<Box<dyn Iterator<Item = RGBW8> + Send>, VMError>;
+    type Item = Result<Box<dyn Iterator<Item =RGBW8> + Send>, VMError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.run() {
