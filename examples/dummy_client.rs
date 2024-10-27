@@ -1,24 +1,23 @@
 use std::time::{Duration, Instant};
 
 use animation_lang::compiler::FromSource;
-use animation_lang::vm::VMState;
+use animation_lang::vm::RGBW8;
 use animation_lang::{
     program::Program,
-    vm::{VMStateConfig, VM},
+    vm::{VMState, VMStateConfig, VM},
 };
 use embedded_graphics::pixelcolor::Rgb888;
 use embedded_graphics::prelude::{IntoStorage, Point, RgbColor, Size};
 use embedded_graphics::primitives::{Primitive, PrimitiveStyleBuilder, Rectangle, StrokeAlignment};
 use minifb::{Key, Window, WindowOptions};
-use rgb::RGB8;
-use smart_leds_trait::SmartLedsWrite;
+use smart_leds_trait::{SmartLedsWrite, White};
 use tiny_http::{Method, Response, Server, StatusCode};
 
 const VLED_QUANTITY: usize = 50;
-const VLED_WIDTH: usize = 30;
-const VLED_HEIGHT: usize = 30;
+const VLED_WIDTH: usize = 26;
+const VLED_HEIGHT: usize = 26;
 const VLED_H_SPACING: usize = 3;
-const VLED_BORDER_WIDTH: usize = 0;
+const VLED_BORDER_WIDTH: usize = 4;
 
 const WINDOW_PADDING: usize = 5;
 const WINDOW_BG: Rgb888 = Rgb888::BLACK;
@@ -29,7 +28,7 @@ const FB_SIZE: usize = WIDTH * HEIGHT;
 //                                                                   / <- FPS here
 const FRAME_TIME: Duration = Duration::from_micros(((1_f32 / 32_f32) * 1_000_000_f32) as u64);
 const MAIN_LOOP_TIME: Duration = Duration::from_millis(1);
-const DEFAULT_PROG: &str = include_str!("../../animation_lang/example_progs/blink.txt");
+const DEFAULT_PROG: &str = include_str!("../example_progs/blink.txt");
 
 trait ToIndex<T> {
     fn to_index(&self) -> usize;
@@ -189,7 +188,7 @@ impl ExportFB for VLedStrip {
                     .fill_color(vled_color)
                     .stroke_width(VLED_BORDER_WIDTH as u32)
                     .stroke_alignment(StrokeAlignment::Inside)
-                    .stroke_color(Rgb888::WHITE)
+                    .stroke_color(Rgb888::new(color_rgbw.a.0, color_rgbw.a.0, color_rgbw.a.0))
                     .build(),
             );
 
@@ -201,12 +200,12 @@ impl ExportFB for VLedStrip {
 }
 
 pub struct VLedStrip {
-    pub state: Vec<RGB8>,
+    pub state: Vec<RGBW8>,
 }
 
 impl SmartLedsWrite for VLedStrip {
     type Error = ();
-    type Color = RGB8;
+    type Color = RGBW8;
 
     fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
     where
@@ -223,7 +222,7 @@ impl SmartLedsWrite for VLedStrip {
 impl VLedStrip {
     pub fn new(length: usize) -> Self {
         VLedStrip {
-            state: vec![RGB8::new(0, 0, 0); length],
+            state: vec![RGBW8::new_alpha(0, 0, 0, White(0)); length],
         }
     }
 }

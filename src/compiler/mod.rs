@@ -260,12 +260,14 @@ fn user_statement(input: &str) -> IResult<&str, Node> {
                 preceded(sp, terminated(expression, sp)),
                 tag(","),
                 preceded(sp, terminated(expression, sp)),
+                tag(","),
+                preceded(sp, terminated(expression, sp)),
                 tag(")"),
             )),
             |t| {
                 Node::UserCall(
                     instructions::UserCommand::SET_PIXEL,
-                    vec![t.1, t.3, t.5, t.7],
+                    vec![t.1, t.3, t.5, t.7, t.9],
                 )
             },
         ),

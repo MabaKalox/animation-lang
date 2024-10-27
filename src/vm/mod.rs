@@ -7,9 +7,11 @@ use derivative::Derivative;
 use errors::VMError;
 use rand::{Rng, RngCore, SeedableRng};
 use rand_chacha::ChaCha8Rng;
-use rgb::RGB8;
+use smart_leds_trait::{White, RGBW};
 use std::time::{SystemTime, UNIX_EPOCH};
 use strip::DummyLedStrip;
+
+pub type RGBW8 = RGBW<u8>;
 
 #[derive(Derivative)]
 #[derivative(Default)]
@@ -44,7 +46,7 @@ pub struct VMConfig {
 pub enum Outcome {
     Ended,
     Error(VMError),
-    BLIT(Box<dyn Iterator<Item = RGB8> + Send>),
+    BLIT(Box<dyn Iterator<Item = RGBW8> + Send>),
 }
 
 impl VMState {
@@ -132,8 +134,8 @@ impl VMState {
             }
             Some(UserCommand::SET_PIXEL) => {
                 if let (Some(v), Some(idx)) = (self.stack.pop(), self.stack.last()) {
-                    let [r, g, b, _] = v.to_le_bytes();
-                    let color = RGB8::new(r, g, b);
+                    let [r, g, b, w] = v.to_le_bytes();
+                    let color = RGBW8::new_alpha(r, g, b, White(w));
 
                     if self.vm.config.trace {
                         print!("\tset_pixel {} idx={} color={:?}", v, idx, color);
@@ -381,7 +383,7 @@ impl VM {
 }
 
 impl Iterator for VMState {
-    type Item = Result<Box<dyn Iterator<Item = RGB8> + Send>, VMError>;
+    type Item = Result<Box<dyn Iterator<Item = RGBW8> + Send>, VMError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.run() {
